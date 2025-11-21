@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Geo-Analisis Pro (Sequential Line & Duration)</title>
+    <title>Dashboard Geo-Analisis Pro (Flexible Input)</title>
     
     <style>
         body { margin: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; background-color: #f3f4f6; }
@@ -29,8 +29,8 @@
         /* Table & Forms */
         .data-table-container { max-height: 300px; overflow-y: auto; }
         .data-table { width: 100%; text-align: left; border-collapse: collapse; font-size: 0.75rem; }
-        .data-table th { position: sticky; top: 0; background: #f9fafb; padding: 8px; border-bottom: 2px solid #e5e7eb; }
-        .data-table td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; }
+        .data-table th { position: sticky; top: 0; background: #f9fafb; padding: 8px; border-bottom: 2px solid #e5e7eb; white-space: nowrap; }
+        .data-table td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
         .file-drop-zone { border: 2px dashed #cbd5e1; transition: all 0.3s; background: #f8fafc; }
         .file-drop-zone:hover { border-color: #3b82f6; background-color: #eff6ff; }
 
@@ -116,7 +116,7 @@
     <div id="dataEntryModal" class="fixed inset-0 bg-black/60 z-[9999] hidden flex items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity duration-300">
         <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden">
             <div class="p-4 border-b flex justify-between items-center bg-gray-50">
-                <h3 class="font-bold text-gray-800"><i class="fa-solid fa-file-excel text-green-600 mr-2"></i> Upload Excel</h3>
+                <h3 class="font-bold text-gray-800"><i class="fa-solid fa-file-excel text-green-600 mr-2"></i> Upload Excel Bebas</h3>
                 <button onclick="toggleModal('dataEntryModal', false)" class="text-gray-400 hover:text-gray-700"><i class="fa-solid fa-times"></i></button>
             </div>
             <div class="p-8 flex flex-col items-center">
@@ -124,7 +124,7 @@
                     <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleFileSelect(this)">
                     <i class="fa-solid fa-cloud-arrow-up text-4xl text-blue-400 mb-3"></i>
                     <p class="text-sm text-gray-600 font-medium">Tarik File Excel ke sini</p>
-                    <p class="text-xs text-gray-400 mt-1">Support: .xlsx, .csv (Format kolom: Lat, Lon, Date, Time, Speed)</p>
+                    <p class="text-xs text-gray-400 mt-1">Syarat: Harus ada kolom Latitude & Longitude (Nama kolom bebas)</p>
                 </div>
                 <div id="fileInfo" class="hidden w-full bg-green-50 border border-green-200 rounded-lg p-3 flex justify-between items-center">
                     <span class="text-xs text-green-800 font-medium"><i class="fa-solid fa-check-circle mr-1"></i> <span id="fileName">file.xlsx</span></span>
@@ -135,11 +135,11 @@
         </div>
     </div>
 
-    <!-- DATA MANAGER MODAL -->
+    <!-- DATA MANAGER MODAL (DYNAMIC TABLE) -->
     <div id="dataManagerModal" class="fixed inset-0 bg-black/60 z-[9999] hidden flex items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity duration-300">
-        <div class="bg-white w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
+        <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
             <div class="p-4 border-b flex justify-between items-center bg-gray-50">
-                <h3 class="font-bold text-gray-800"><i class="fa-solid fa-list-check text-blue-600 mr-2"></i> Kelola Data</h3>
+                <h3 class="font-bold text-gray-800"><i class="fa-solid fa-list-check text-blue-600 mr-2"></i> Kelola Data (Otomatis)</h3>
                 <button onclick="toggleModal('dataManagerModal', false)" class="text-gray-400 hover:text-gray-700"><i class="fa-solid fa-times"></i></button>
             </div>
             <div class="p-4 flex-1 overflow-hidden flex flex-col">
@@ -148,9 +148,8 @@
                     <button onclick="clearAllData()" class="text-xs bg-red-100 text-red-600 px-3 py-1.5 rounded font-bold hover:bg-red-200">Hapus Semua</button>
                 </div>
                 <div class="data-table-container border border-gray-200 rounded-lg flex-1 custom-scrollbar">
-                    <table class="data-table">
-                        <thead><tr><th>#</th><th>Tanggal</th><th>Jam</th><th>Lat</th><th>Lng</th><th>Speed</th><th>Aksi</th></tr></thead>
-                        <tbody id="dataTableBody"></tbody>
+                    <table class="data-table" id="mainDataTable">
+                        <!-- Dynamic Headers will be inserted here -->
                     </table>
                 </div>
             </div>
@@ -174,7 +173,7 @@
             <div class="draggable-header text-sm font-bold text-gray-800 mb-3 border-b pb-2 flex justify-between items-center" data-target="controlContainer">
                 <div class="flex items-center gap-2"><i class="fa-solid fa-layer-group text-blue-600"></i> Dashboard Geo</div>
                 <div class="flex gap-1">
-                    <button onclick="openSettings()" class="text-gray-500 hover:text-blue-600 p-1" title="Pengaturan Tampilan & API"><i class="fa-solid fa-gear"></i></button>
+                    <button onclick="openSettings()" class="text-gray-500 hover:text-blue-600 p-1" title="Pengaturan"><i class="fa-solid fa-gear"></i></button>
                     <button onclick="toggleMinMax('controlContainer', true)" class="text-gray-500 hover:text-blue-600 p-1"><i class="fa-solid fa-compress"></i></button>
                 </div>
             </div>
@@ -216,7 +215,6 @@
                     </select>
                 </div>
 
-                <!-- Main Panel Radius Slider -->
                 <div>
                     <label class="text-xs font-bold text-gray-500 block mb-1.5">Ukuran / Radius (Cepat)</label>
                     <input type="range" id="radiusSlider" min="5" max="100" value="25" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
@@ -375,36 +373,73 @@
 
         function processData(json) {
             let newData = [];
-            let latKey, lonKey, dateKey, timeKey, speedKey;
+            let latKey, lonKey;
             const keys = Object.keys(json[0] || {});
+            
+            // Auto-detect Lat/Lon
             keys.forEach(k => {
                 const l = k.toLowerCase();
-                if(l.includes('lat')) latKey=k; else if(l.includes('lon')||l.includes('lng')) lonKey=k;
-                else if(l.includes('date')||l.includes('tgl')) dateKey=k; else if(l.includes('time')||l.includes('jam')) timeKey=k;
-                else if(l.includes('speed')||l.includes('kecepatan')||l.includes('laju')||l.includes('vel')) speedKey=k;
+                if(l.includes('lat')) latKey=k; 
+                else if(l.includes('lon')||l.includes('lng')) lonKey=k;
             });
 
             let combinedKey = null;
-            if (!latKey || !lonKey) { keys.forEach(k => { const val = json[0][k]; if (typeof val === 'string' && val.trim().match(/^-?\d+(\.\d+)?\s+-?\d+(\.\d+)?$/)) combinedKey = k; }); }
-            if(!latKey && !lonKey && !combinedKey) return alert("Kolom Latitude/Longitude tidak ditemukan.");
+            if (!latKey || !lonKey) { 
+                keys.forEach(k => { const val = json[0][k]; if (typeof val === 'string' && val.trim().match(/^-?\d+(\.\d+)?\s+-?\d+(\.\d+)?$/)) combinedKey = k; }); 
+            }
 
+            if(!latKey && !lonKey && !combinedKey) return alert("Kolom Latitude/Longitude tidak ditemukan. Pastikan ada kolom yang mengandung 'lat' dan 'lon' atau 'lng'.");
+
+            // Process Rows
             json.forEach(row => {
                 let lat, lng;
-                if (combinedKey) { const parts = row[combinedKey].toString().trim().split(/\s+/); if(parts.length >= 2) { lat = parseFloat(parts[0]); lng = parseFloat(parts[1]); } } 
-                else { lat = parseFloat(row[latKey]); lng = parseFloat(row[lonKey]); }
+                if (combinedKey) { 
+                    const parts = row[combinedKey].toString().trim().split(/\s+/); 
+                    if(parts.length >= 2) { lat = parseFloat(parts[0]); lng = parseFloat(parts[1]); } 
+                } else { 
+                    lat = parseFloat(row[latKey]); lng = parseFloat(row[lonKey]); 
+                }
 
                 if(!isNaN(lat) && !isNaN(lng)) {
-                    let d = dateKey ? row[dateKey] : new Date().toISOString().split('T')[0];
-                    let t = timeKey ? row[timeKey] : "00:00";
-                    let s = speedKey ? parseFloat(row[speedKey]) : null;
+                    // Store everything else in 'props'
+                    // Try to parse date/time for internal sorting/logic, but keep original
+                    let d = null, t = null, s = null;
+                    
+                    // Simple heuristic for internal logic columns (optional)
+                    keys.forEach(k => {
+                        const l = k.toLowerCase();
+                        if(l.includes('date') || l.includes('tgl')) d = row[k];
+                        if(l.includes('time') || l.includes('jam')) t = row[k];
+                        if(l.includes('speed') || l.includes('kecepatan')) s = parseFloat(row[k]);
+                    });
+
+                    // Date Normalization for internal sorting
                     if(typeof d === 'number') d = new Date(Math.round((d - 25569)*86400*1000)).toISOString().split('T')[0];
-                    if(typeof t === 'number') { let sec = Math.round(t * 86400); t = `${String(Math.floor(sec/3600)).padStart(2,'0')}:${String(Math.floor((sec%3600)/60)).padStart(2,'0')}`; }
-                    newData.push({lat, lng, date:d, time:t, speed:s});
+                    else if(!d) d = new Date().toISOString().split('T')[0];
+
+                    // Time Normalization
+                    if(typeof t === 'number') {
+                        let sec = Math.round(t * 86400);
+                        t = `${String(Math.floor(sec/3600)).padStart(2,'0')}:${String(Math.floor((sec%3600)/60)).padStart(2,'0')}`;
+                    } else if(!t) t = "00:00";
+
+                    newData.push({
+                        lat: lat, 
+                        lng: lng, 
+                        date: d, 
+                        time: t, 
+                        speed: s,
+                        props: row // Store ALL original data
+                    });
                 }
             });
 
-            if(newData.length > 0) { rawData = newData; displayData = [...rawData]; map.fitBounds(L.latLngBounds(newData.map(d=>[d.lat,d.lng]))); updateUI(); toggleModal('dataEntryModal', false); } 
-            else alert("Data tidak valid.");
+            if(newData.length > 0) { 
+                rawData = newData; displayData = [...rawData]; 
+                map.fitBounds(L.latLngBounds(newData.map(d=>[d.lat,d.lng]))); 
+                updateUI(); 
+                toggleModal('dataEntryModal', false); 
+            } else alert("Data tidak valid.");
         }
 
         function resetUpload() { document.getElementById('fileInput').value = ''; document.getElementById('fileInfo').classList.add('hidden'); document.getElementById('dropZone').classList.remove('hidden'); }
@@ -412,24 +447,55 @@
             rawData=[]; const clat=-6.200, clng=106.816;
             for(let i=0; i<50; i++) {
                 let spd = Math.random() > 0.2 ? Math.floor(Math.random()*100) : 0;
-                // Generate sequential time for demo
                 let h = Math.floor(i/2); let m = (i%2)*30;
-                rawData.push({ lat: clat+(Math.random()-0.5)*0.05, lng: clng+(Math.random()-0.5)*0.05, date: '2023-11-22', time: `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`, speed: spd });
+                let time = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+                let date = '2023-11-22';
+                let row = { 'Latitude': clat, 'Longitude': clng, 'Tanggal': date, 'Jam': time, 'Kecepatan': spd, 'Info': 'Dummy Data' };
+                
+                rawData.push({ 
+                    lat: clat+(Math.random()-0.5)*0.05, 
+                    lng: clng+(Math.random()-0.5)*0.05, 
+                    date: date, time: time, speed: spd,
+                    props: row
+                });
             }
             displayData=[...rawData]; map.fitBounds(L.latLngBounds(rawData.map(d=>[d.lat,d.lng]))); updateUI(); toggleModal('dataEntryModal', false);
         }
 
         function openDataManager() {
             toggleModal('dataManagerModal', true);
-            const tbody = document.getElementById('dataTableBody'); tbody.innerHTML = '';
+            const table = document.getElementById('mainDataTable');
+            table.innerHTML = '';
             document.getElementById('managerCount').innerText = rawData.length;
+            
+            if(rawData.length === 0) return;
+
+            // Dynamic Headers
+            const headers = Object.keys(rawData[0].props);
+            let thead = '<thead><tr><th class="w-10">#</th>';
+            headers.forEach(h => thead += `<th>${h}</th>`);
+            thead += '<th class="w-10 text-center">Aksi</th></tr></thead>';
+            table.innerHTML = thead;
+
+            // Dynamic Body
+            let tbody = '<tbody>';
             const limit = Math.min(rawData.length, 100);
             for(let i=0; i<limit; i++) {
                 const d = rawData[i];
-                const spd = d.speed !== null ? d.speed : '-';
-                tbody.innerHTML += `<tr><td class="text-gray-400 text-xs">${i+1}</td><td>${d.date}</td><td>${d.time}</td><td>${d.lat.toFixed(4)}</td><td>${d.lng.toFixed(4)}</td><td>${spd}</td><td class="text-center"><i class="fa-solid fa-trash-can btn-delete-row cursor-pointer text-red-500" onclick="deleteRow(${i})"></i></td></tr>`;
+                tbody += `<tr><td class="text-gray-400 text-xs">${i+1}</td>`;
+                headers.forEach(h => {
+                    let val = d.props[h];
+                    // Format basic objects/dates nicely
+                    if(typeof val === 'object' && val !== null) val = JSON.stringify(val);
+                    if(typeof val === 'number' && val % 1 !== 0) val = val.toFixed(5); // Limit decimals for display
+                    tbody += `<td>${val !== undefined ? val : '-'}</td>`;
+                });
+                tbody += `<td class="text-center"><i class="fa-solid fa-trash-can btn-delete-row cursor-pointer text-red-500" onclick="deleteRow(${i})"></i></td></tr>`;
             }
+            tbody += '</tbody>';
+            table.innerHTML += tbody;
         }
+
         function deleteRow(i) { if(confirm("Hapus?")) { rawData.splice(i,1); displayData=[...rawData]; openDataManager(); updateUI(); } }
         function clearAllData() { if(confirm("Hapus SEMUA?")) { rawData=[]; displayData=[]; openDataManager(); updateUI(); } }
         function updateUI() { document.getElementById('dataCount').innerText = `${displayData.length} Data`; renderLayer(); }
@@ -445,23 +511,18 @@
                 activeLayer = L.heatLayer(displayData.map(d=>[d.lat,d.lng,0.8]), { radius: cf.radius, blur: cf.blur }).addTo(map);
                 setupClick(true);
             } else if(mode === 'line') {
-                // 1. Sorting data by Date & Time for sequential path
                 const sortedData = [...displayData].sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`));
-                
                 activeLayer = L.featureGroup();
-                // Draw continuous line based on sorted data
                 const latlngs = sortedData.map(d => [d.lat, d.lng]);
                 L.polyline(latlngs, { color: cf.color, weight: cf.weight, opacity: cf.opacity }).addTo(activeLayer);
 
                 const stops = detectStops(sortedData);
                 stops.forEach(stop => {
-                    // 2. Duration Formatting
-                    const d = Math.floor(stop.duration / 1000); // total seconds
+                    const d = Math.floor(stop.duration / 1000);
                     const h = Math.floor(d / 3600);
                     const m = Math.floor((d % 3600) / 60);
                     const s = d % 60;
                     const durationStr = `${h} Jam ${m} Menit ${s} Detik`;
-
                     L.circleMarker([stop.lat, stop.lng], { radius: 8, fillColor: '#ef4444', color: '#ffffff', weight: 2, fillOpacity: 1 })
                      .bindPopup(`<div class='text-center font-sans'><b class='text-red-600'>🛑 BERHENTI</b><br><span class='text-xs font-bold'>${durationStr}</span><br><div class='mt-1 pt-1 border-t text-xs text-gray-600'>${stop.startTime} - ${stop.endTime}</div></div>`)
                      .addTo(activeLayer);
@@ -487,17 +548,14 @@
             const stops = [];
             if (data.length < 2) return stops;
             const hasSpeed = data.some(d => d.speed !== null && d.speed !== undefined);
-            const DIST_THRESHOLD = 50; // 50 meters radius check
+            const DIST_THRESHOLD = 50; 
 
-            // Combined Logic: Speed=0 OR Distance < 50m
             let stopStart = null;
             let stopEnd = null;
 
             for (let i = 0; i < data.length - 1; i++) {
                 const curr = data[i];
                 const next = data[i+1];
-                
-                // Check condition: Speed is 0 OR distance to next point is very small
                 const dist = map.distance([curr.lat, curr.lng], [next.lat, next.lng]);
                 const isStopped = (curr.speed !== null && curr.speed === 0) || (dist < DIST_THRESHOLD);
 
@@ -515,7 +573,6 @@
                     }
                 }
             }
-            // Check tail
             if (stopStart && stopEnd) {
                 let start = new Date(`${stopStart.date}T${stopStart.time}`);
                 let end = new Date(`${stopEnd.date}T${stopEnd.time}`);
@@ -539,8 +596,20 @@
         }
 
         function createPopup(d) {
-            let spdInfo = d.speed !== null ? `<br>🚀 Speed: ${d.speed} km/h` : '';
-            return `<div class='text-center'><b>Data Info</b><br>📅 ${d.date}<br>⏰ ${d.time}${spdInfo}<br>${d.lat.toFixed(5)}, ${d.lng.toFixed(5)}<br><a href="https://www.google.com/maps?q=&layer=c&cbll=${d.lat},${d.lng}" target="_blank" class="text-blue-600 underline text-xs">Street View</a></div>`;
+            let content = `<div class='font-sans text-left min-w-[150px]'>`;
+            content += `<div class="bg-blue-50 p-2 -mx-3 -mt-3 mb-2 border-b border-blue-100 rounded-t text-center"><b class="text-blue-800">Info Data</b></div>`;
+            
+            // Loop through dynamic properties
+            for (const [key, value] of Object.entries(d.props)) {
+                // Skip lat/lon in list if wanted, or keep them. Let's keep concise list.
+                let displayVal = value;
+                if(typeof value === 'number' && value % 1 !== 0) displayVal = value.toFixed(5);
+                content += `<div class="flex justify-between text-xs mb-1"><span class="text-gray-500 font-medium mr-2">${key}:</span> <span class="text-gray-800">${displayVal}</span></div>`;
+            }
+            
+            content += `<div class="mt-2 pt-2 border-t border-gray-100 text-center"><a href="https://www.google.com/maps?q=&layer=c&cbll=${d.lat},${d.lng}" target="_blank" class="text-blue-600 underline text-xs font-bold">Lihat Street View</a></div>`;
+            content += `</div>`;
+            return content;
         }
 
         // --- AI & MISC ---
@@ -557,7 +626,7 @@
         async function handleAICommand() {
             const q = document.getElementById('aiCommandInput').value.trim(); if(!q) return;
             const cr = /^(-?\d+(\.\d+)?)[,\s]+(-?\d+(\.\d+)?)$/; const m = q.match(cr);
-            if (m) { map.setView([parseFloat(m[1]), parseFloat(m[3])], 15); L.popup().setLatLng([parseFloat(m[1]), parseFloat(m[3])]).setContent(`📍 ${m[1]}, ${m[3]}`).openOn(map); return; }
+            if (m) { map.setView([parseFloat(m[1]), parseFloat(m[3])], 15); L.popup().setLatLng([parseFloat(m[1]), parseFloat(m[3])]).setContent(`<b>📍 Koordinat</b><br>${m[1]}, ${m[3]}`).openOn(map); return; }
             const p = `User: "${q}". JSON ONLY: { "action": "NAVIGATE"|"FILTER"|"RESET", "lat": num, "lng": num, "zoom": 13, "label": "name", "expr": "JS bool (d.date,d.time,d.lat)" }`;
             try { const t = await callAI(p); const a = JSON.parse(t.replace(/```json|```/g,'').trim());
                 if(a.action==='NAVIGATE') { map.setView([a.lat,a.lng], 13); L.popup().setLatLng([a.lat,a.lng]).setContent(`📍 ${a.label}`).openOn(map); }
