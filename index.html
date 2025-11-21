@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Geo-Analisis Lengkap (3D & Elevasi)</title>
+    <title>Dashboard Geo-Analisis Lengkap (Elevasi & AI)</title>
     
     <style>
         body { margin: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; background-color: #f3f4f6; }
-        #map { height: 100vh; width: 100%; z-index: 1; transition: transform 0.5s; }
+        #map { height: 100vh; width: 100%; z-index: 1; }
         
         /* Panel Glass Effect */
         .glass-panel {
@@ -16,15 +16,6 @@
             border: 1px solid rgba(209, 213, 219, 0.5);
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
-        }
-        
-        /* 3D Mode Effect */
-        .map-3d-mode #map {
-            transform: perspective(1000px) rotateX(45deg) scale(1.1);
-        }
-        /* Fix controls position in 3D mode */
-        .map-3d-mode .leaflet-control-container {
-            transform: perspective(1000px) rotateX(-45deg);
         }
 
         .loader {
@@ -123,15 +114,6 @@
                     <i class="fa-solid fa-upload group-hover:-translate-y-1 transition-transform"></i>
                 </button>
 
-                <!-- 3D Toggle -->
-                <div class="flex items-center justify-between bg-gray-100 p-2 rounded-lg">
-                    <span class="text-xs font-bold text-gray-600 ml-1"><i class="fa-solid fa-cube mr-1"></i> Mode 3D Perspektif</span>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="toggle3D" class="sr-only peer" onchange="toggle3DMode(this)">
-                        <div class="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                </div>
-
                 <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100 space-y-2">
                     <label class="text-[10px] font-bold text-indigo-800 uppercase tracking-wider block">
                         <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Pencarian & Analisis
@@ -222,30 +204,18 @@
         const map = L.map('map', {center: [-6.200, 106.816], zoom: 11, zoomControl: false, preferCanvas: true});
         L.control.zoom({position: 'bottomright'}).addTo(map);
         
+        // FIX: Added maxNativeZoom and increased maxZoom for satellite layers to prevent disappearing tiles
         const baseLayers = {
-            'road': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}),
-            'satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom:19}),
+            'road': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:22, maxNativeZoom: 19}),
+            'satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom:22, maxNativeZoom: 19}),
             'hybrid': L.layerGroup([
-                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
-                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}')
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom:22, maxNativeZoom: 19}),
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {maxZoom:22, maxNativeZoom: 19})
             ]),
-            'terrain': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {maxZoom:19})
+            'terrain': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {maxZoom:22, maxNativeZoom: 19})
         };
         baseLayers['road'].addTo(map);
         const drawnItems = new L.FeatureGroup().addTo(map);
-
-        // --- 3D & ELEVATION FEATURES ---
-        
-        function toggle3DMode(checkbox) {
-            if(checkbox.checked) {
-                document.body.classList.add('map-3d-mode');
-                // Force redraw slightly to handle CSS transform glitches
-                setTimeout(() => map.invalidateSize(), 300);
-            } else {
-                document.body.classList.remove('map-3d-mode');
-                setTimeout(() => map.invalidateSize(), 300);
-            }
-        }
 
         async function getElevation(lat, lng) {
             try {
@@ -290,7 +260,7 @@
                 if (lower.includes('lat')) latKey = k;
                 else if (lower.includes('lon') || lower.includes('lng')) lonKey = k;
                 else if (lower.includes('date') || lower.includes('tgl') || lower.includes('tanggal')) dateKey = k;
-                else if (lower.includes('time') || lower.includes('jam') || lower.includes('waktu')) timeKey = k;
+                else if (lower.includes('time') || lower.includes('jam') || lower.includes('waktu') || lower.includes('pukul')) timeKey = k;
             });
             if (!latKey || !lonKey) return alert("Gagal mendeteksi kolom Latitude/Longitude.");
 
@@ -300,9 +270,40 @@
                 if (!isNaN(lat) && !isNaN(lng)) {
                     let dateStr = dateKey ? row[dateKey] : "";
                     let timeStr = timeKey ? row[timeKey] : "";
-                    if (typeof dateStr === 'number') dateStr = new Date(Math.round((dateStr - 25569)*86400*1000)).toISOString().split('T')[0];
+                    
+                    if (typeof dateStr === 'number') {
+                        const dateObj = new Date(Math.round((dateStr - 25569)*86400*1000));
+                        dateStr = dateObj.toISOString().split('T')[0];
+                    } else if (dateStr instanceof Date) {
+                        dateStr = dateStr.toISOString().split('T')[0];
+                    }
+                    
+                    if (typeof timeStr === 'number') {
+                        let totalSeconds = 0;
+                        if (timeStr < 1) {
+                            totalSeconds = Math.round(timeStr * 86400);
+                        } else {
+                            totalSeconds = Math.round((timeStr % 1) * 86400);
+                        }
+                        const h = Math.floor(totalSeconds / 3600);
+                        const m = Math.floor((totalSeconds % 3600) / 60);
+                        timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                    } else if (timeStr instanceof Date) {
+                        const h = String(timeStr.getHours()).padStart(2, '0');
+                        const m = String(timeStr.getMinutes()).padStart(2, '0');
+                        timeStr = `${h}:${m}`;
+                    } else if (typeof timeStr === 'string' && timeStr.includes('T')) {
+                        const d = new Date(timeStr);
+                        if(!isNaN(d)) {
+                             const h = String(d.getHours()).padStart(2, '0');
+                             const m = String(d.getMinutes()).padStart(2, '0');
+                             timeStr = `${h}:${m}`;
+                        }
+                    }
+                    
                     if (!dateStr) dateStr = new Date().toISOString().split('T')[0];
-                    if (!timeStr) timeStr = "00:00";
+                    if (!timeStr || timeStr.trim() === "") timeStr = "00:00";
+
                     parsedData.push({ lat, lng, date: dateStr, time: timeStr });
                 }
             });
