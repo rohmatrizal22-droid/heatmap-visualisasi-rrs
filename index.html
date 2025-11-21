@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Geo-Analisis Pro (Smooth Interaction)</title>
+    <title>Dashboard Geo-Analisis Pro (Sequential Line & Duration)</title>
     
     <style>
         body { margin: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; background-color: #f3f4f6; }
@@ -67,89 +67,52 @@
     <!-- SETTINGS MODAL -->
     <div id="settingsModal" class="fixed inset-0 bg-black/60 z-[9999] hidden flex items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity duration-300">
         <div class="bg-white w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col h-[600px]">
-            <!-- Header -->
             <div class="p-4 border-b bg-gray-50 flex justify-between items-center shrink-0">
                 <h3 class="font-bold text-gray-800 text-lg"><i class="fa-solid fa-sliders text-blue-600 mr-2"></i> Pengaturan Tampilan & Data</h3>
                 <button onclick="toggleModal('settingsModal', false)" class="text-gray-400 hover:text-gray-700"><i class="fa-solid fa-times text-xl"></i></button>
             </div>
-            
-            <!-- Body with Split View -->
             <div class="flex flex-1 overflow-hidden">
-                <!-- Sidebar (Left) -->
                 <div class="w-1/3 bg-gray-50 border-r border-gray-200 p-3 flex flex-col gap-2 overflow-y-auto custom-scrollbar">
                     <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 px-2">Mode Visual</div>
-                    <button onclick="switchStyleTab('point')" class="style-tab setting-tab-active w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-point">
-                        <i class="fa-solid fa-circle-dot text-orange-500"></i> Titik (Point)
-                    </button>
-                    <button onclick="switchStyleTab('circle')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-circle">
-                        <i class="fa-regular fa-circle text-red-500"></i> Lingkaran (Radius)
-                    </button>
-                    <button onclick="switchStyleTab('line')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-line">
-                        <i class="fa-solid fa-route text-blue-500"></i> Garis (Line)
-                    </button>
-                    <button onclick="switchStyleTab('heatmap')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-heatmap">
-                        <i class="fa-solid fa-fire text-red-600"></i> Heatmap
-                    </button>
-                    
+                    <button onclick="switchStyleTab('point')" class="style-tab setting-tab-active w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-point"><i class="fa-solid fa-circle-dot text-orange-500"></i> Titik (Point)</button>
+                    <button onclick="switchStyleTab('circle')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-circle"><i class="fa-regular fa-circle text-red-500"></i> Lingkaran (Radius)</button>
+                    <button onclick="switchStyleTab('line')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-line"><i class="fa-solid fa-route text-blue-500"></i> Garis (Line)</button>
+                    <button onclick="switchStyleTab('heatmap')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-heatmap"><i class="fa-solid fa-fire text-red-600"></i> Heatmap</button>
                     <div class="my-2 border-t border-gray-200"></div>
                     <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 px-2">Sistem</div>
-                    <button onclick="switchStyleTab('api')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-api">
-                        <i class="fa-solid fa-key text-gray-600"></i> API Key
-                    </button>
+                    <button onclick="switchStyleTab('api')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-api"><i class="fa-solid fa-key text-gray-600"></i> API Key</button>
                 </div>
-
-                <!-- Content Area (Right) -->
                 <div class="w-2/3 p-6 overflow-y-auto custom-scrollbar bg-white relative">
-                    
-                    <!-- Style Controls -->
                     <div id="styleContentWrapper">
                         <h4 class="text-lg font-bold text-gray-800 mb-1" id="styleTitle">Pengaturan Titik</h4>
                         <p class="text-xs text-gray-500 mb-6">Geser slider untuk melihat perubahan secara langsung (Real-time).</p>
-                        
-                        <div id="styleControls" class="space-y-6">
-                            <!-- Dynamic Controls Injected Here -->
-                        </div>
+                        <div id="styleControls" class="space-y-6"></div>
                     </div>
-
-                    <!-- API Key Section -->
                     <div id="apiContentWrapper" class="hidden">
                         <h4 class="text-lg font-bold text-gray-800 mb-1">Konfigurasi API</h4>
                         <p class="text-xs text-gray-500 mb-6">Koneksikan dashboard dengan Google Gemini AI.</p>
-                        
                         <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
                             <label class="text-sm font-bold text-blue-800 block mb-2">Gemini API Key</label>
                             <div class="relative">
                                 <input type="password" id="apiKeyInput" class="w-full p-3 pr-20 rounded-lg border border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="Tempel API Key di sini...">
-                                <button onclick="toggleApiKeyVisibility()" class="absolute right-2 top-3 text-gray-400 hover:text-blue-600">
-                                    <i class="fa-solid fa-eye" id="eyeIcon"></i>
-                                </button>
+                                <button onclick="toggleApiKeyVisibility()" class="absolute right-2 top-3 text-gray-400 hover:text-blue-600"><i class="fa-solid fa-eye" id="eyeIcon"></i></button>
                             </div>
                             <div class="flex justify-end mt-3">
-                                <button onclick="saveApiKey()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition-colors">
-                                    <i class="fa-solid fa-save mr-1"></i> Simpan Key
-                                </button>
+                                <button onclick="saveApiKey()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition-colors"><i class="fa-solid fa-save mr-1"></i> Simpan Key</button>
                             </div>
-                            <p class="text-xs text-blue-600 mt-3 flex items-center gap-1">
-                                <i class="fa-solid fa-shield-halved"></i>
-                                Key disimpan lokal di browser Anda (LocalStorage). Aman untuk GitHub Pages.
-                            </p>
+                            <p class="text-xs text-blue-600 mt-3 flex items-center gap-1"><i class="fa-solid fa-shield-halved"></i> Key disimpan lokal di browser Anda (LocalStorage). Aman untuk GitHub Pages.</p>
                         </div>
                     </div>
-
                 </div>
             </div>
-            
-            <!-- Footer -->
             <div class="p-4 border-t bg-gray-50 flex justify-between items-center shrink-0">
                 <button onclick="resetStyles()" class="text-red-500 hover:text-red-700 text-sm font-medium px-3">Reset Default</button>
-                <button onclick="toggleModal('settingsModal', false)" class="bg-gray-800 hover:bg-gray-900 text-white text-sm px-6 py-2.5 rounded-lg font-bold shadow hover:shadow-lg transition-all">
-                    Tutup
-                </button>
+                <button onclick="toggleModal('settingsModal', false)" class="bg-gray-800 hover:bg-gray-900 text-white text-sm px-6 py-2.5 rounded-lg font-bold shadow hover:shadow-lg transition-all">Tutup</button>
             </div>
         </div>
     </div>
 
-    <!-- MODALS (Data Entry, Manager, AI Output) -->
+    <!-- DATA ENTRY MODAL -->
     <div id="dataEntryModal" class="fixed inset-0 bg-black/60 z-[9999] hidden flex items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity duration-300">
         <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden">
             <div class="p-4 border-b flex justify-between items-center bg-gray-50">
@@ -172,6 +135,7 @@
         </div>
     </div>
 
+    <!-- DATA MANAGER MODAL -->
     <div id="dataManagerModal" class="fixed inset-0 bg-black/60 z-[9999] hidden flex items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity duration-300">
         <div class="bg-white w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
             <div class="p-4 border-b flex justify-between items-center bg-gray-50">
@@ -193,6 +157,7 @@
         </div>
     </div>
 
+    <!-- AI OUTPUT MODAL -->
     <div id="aiModal" class="fixed inset-0 bg-black/50 z-[9999] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
         <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
             <div class="p-4 border-b bg-gradient-to-r from-indigo-600 to-purple-600 rounded-t-2xl flex justify-between items-center">
@@ -251,7 +216,7 @@
                     </select>
                 </div>
 
-                <!-- Main Panel Radius Slider (Now using smooth update) -->
+                <!-- Main Panel Radius Slider -->
                 <div>
                     <label class="text-xs font-bold text-gray-500 block mb-1.5">Ukuran / Radius (Cepat)</label>
                     <input type="range" id="radiusSlider" min="5" max="100" value="25" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
@@ -292,11 +257,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <script>
-        // --- GLOBAL STATE & CONFIG ---
+        // --- GLOBAL STATE ---
         let rawData = [], displayData = [], activeLayer = null;
-        let isUpdatingMap = false; // Flag for RAF
+        let isUpdatingMap = false;
         
-        // Default Style Configurations
+        // Default Config
         const defaultStyles = {
             point: { color: '#f97316', radius: 5, opacity: 0.9 },
             circle: { color: '#ef4444', radiusScale: 20, opacity: 0.5 },
@@ -308,16 +273,15 @@
         const map = L.map('map', {center: [-6.200, 106.816], zoom: 11, zoomControl: false, preferCanvas: true});
         L.control.zoom({position: 'bottomright'}).addTo(map);
 
-        // Google Maps Layers
         const baseLayers = {
             'google_road': L.tileLayer('http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'] }),
-            'google_sat': L.tileLayer('http://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'] }), 
+            'google_sat': L.tileLayer('http://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'] }),
             'google_terrain': L.tileLayer('http://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'] })
         };
         baseLayers['google_road'].addTo(map);
         const drawnItems = new L.FeatureGroup().addTo(map);
 
-        // --- API KEY MANAGEMENT ---
+        // --- API & STYLE ---
         function getApiKey() { return localStorage.getItem('gemini_api_key') || ""; }
         function saveApiKey() {
             const key = document.getElementById('apiKeyInput').value.trim();
@@ -331,128 +295,63 @@
         }
         document.getElementById('apiKeyInput').value = getApiKey();
 
-        // --- STYLE EDITOR LOGIC (OPTIMIZED SMOOTH) ---
         function openSettings() { toggleModal('settingsModal', true); switchStyleTab('point'); }
-        
         function switchStyleTab(mode) {
-            document.querySelectorAll('.style-tab').forEach(b => {
-                b.classList.remove('setting-tab-active');
-                b.classList.add('text-gray-600', 'hover:bg-white');
-            });
+            document.querySelectorAll('.style-tab').forEach(b => { b.classList.remove('setting-tab-active'); b.classList.add('text-gray-600', 'hover:bg-white'); });
             document.getElementById('tab-'+mode).classList.add('setting-tab-active');
             document.getElementById('tab-'+mode).classList.remove('text-gray-600');
-
             const styleWrap = document.getElementById('styleContentWrapper');
             const apiWrap = document.getElementById('apiContentWrapper');
-
-            if(mode === 'api') {
-                styleWrap.classList.add('hidden');
-                apiWrap.classList.remove('hidden');
-            } else {
-                styleWrap.classList.remove('hidden');
-                apiWrap.classList.add('hidden');
-                const titles = { 'point': 'Pengaturan Titik (Point)', 'circle': 'Pengaturan Lingkaran (Radius)', 'line': 'Pengaturan Garis (Line)', 'heatmap': 'Pengaturan Heatmap' };
+            if(mode === 'api') { styleWrap.classList.add('hidden'); apiWrap.classList.remove('hidden'); }
+            else { styleWrap.classList.remove('hidden'); apiWrap.classList.add('hidden'); 
+                const titles = { 'point': 'Pengaturan Titik', 'circle': 'Pengaturan Lingkaran', 'line': 'Pengaturan Garis', 'heatmap': 'Pengaturan Heatmap' };
                 document.getElementById('styleTitle').innerText = titles[mode];
-                renderStyleControls(mode);
+                renderStyleControls(mode); 
             }
         }
 
-        // Render controls with IDs for direct update
         function renderStyleControls(mode) {
             const c = document.getElementById('styleControls');
             const cf = styleConfig[mode];
             let html = '';
-
             if (mode === 'heatmap') {
-                html = `
-                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                        <label class="text-xs font-bold text-gray-500 block mb-2">Ukuran Radius Heatmap (<span id="label-${mode}-radius">${cf.radius}</span>px)</label>
-                        <input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="5" max="100" value="${cf.radius}" oninput="updateConfig('${mode}', 'radius', this.value)">
-                    </div>
-                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                        <label class="text-xs font-bold text-gray-500 block mb-2">Efek Blur (<span id="label-${mode}-blur">${cf.blur}</span>)</label>
-                        <input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="5" max="100" value="${cf.blur}" oninput="updateConfig('${mode}', 'blur', this.value)">
-                    </div>
-                `;
+                html = `<div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Radius (<span id="label-${mode}-radius">${cf.radius}</span>px)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="5" max="100" value="${cf.radius}" oninput="updateConfig('${mode}', 'radius', this.value)"></div>
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Blur (<span id="label-${mode}-blur">${cf.blur}</span>)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="5" max="100" value="${cf.blur}" oninput="updateConfig('${mode}', 'blur', this.value)"></div>`;
             } else {
-                html = `
-                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-100 flex items-center justify-between">
-                        <div><label class="text-xs font-bold text-gray-500 block">Warna Utama</label></div>
-                        <input type="color" value="${cf.color}" onchange="updateConfig('${mode}', 'color', this.value)">
-                    </div>
-                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                        <label class="text-xs font-bold text-gray-500 block mb-2">Transparansi (<span id="label-${mode}-opacity">${cf.opacity}</span>)</label>
-                        <input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="0.1" max="1" step="0.1" value="${cf.opacity}" oninput="updateConfig('${mode}', 'opacity', this.value)">
-                    </div>
-                `;
-                if(mode === 'point') html += `<div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Ukuran Titik (<span id="label-${mode}-radius">${cf.radius}</span>px)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="2" max="20" value="${cf.radius}" oninput="updateConfig('${mode}', 'radius', this.value)"></div>`;
+                html = `<div class="bg-gray-50 p-4 rounded-lg border border-gray-100 flex items-center justify-between"><div><label class="text-xs font-bold text-gray-500 block">Warna Utama</label></div><input type="color" value="${cf.color}" onchange="updateConfig('${mode}', 'color', this.value)"></div>
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Transparansi (<span id="label-${mode}-opacity">${cf.opacity}</span>)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="0.1" max="1" step="0.1" value="${cf.opacity}" oninput="updateConfig('${mode}', 'opacity', this.value)"></div>`;
+                if(mode === 'point') html += `<div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Ukuran (<span id="label-${mode}-radius">${cf.radius}</span>px)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="2" max="20" value="${cf.radius}" oninput="updateConfig('${mode}', 'radius', this.value)"></div>`;
                 if(mode === 'circle') html += `<div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Skala Radius (<span id="label-${mode}-radiusScale">${cf.radiusScale}</span>x)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="5" max="100" value="${cf.radiusScale}" oninput="updateConfig('${mode}', 'radiusScale', this.value)"></div>`;
-                if(mode === 'line') html += `<div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Ketebalan Garis (<span id="label-${mode}-weight">${cf.weight}</span>px)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="1" max="10" value="${cf.weight}" oninput="updateConfig('${mode}', 'weight', this.value)"></div>`;
+                if(mode === 'line') html += `<div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Ketebalan (<span id="label-${mode}-weight">${cf.weight}</span>px)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="1" max="10" value="${cf.weight}" oninput="updateConfig('${mode}', 'weight', this.value)"></div>`;
             }
             c.innerHTML = html;
         }
 
-        // SMOOTH CONFIG UPDATE (Direct DOM + RAF)
         function updateConfig(mode, key, val) {
             if(key !== 'color') val = parseFloat(val);
             styleConfig[mode][key] = val;
-            
-            // Update label text directly without re-rendering slider
             const label = document.getElementById(`label-${mode}-${key}`);
             if(label) label.innerText = val;
-
-            // Update Map Visually
-            if (!isUpdatingMap) {
-                requestAnimationFrame(() => {
-                    updateActiveLayerStyle(mode);
-                    isUpdatingMap = false;
-                });
-                isUpdatingMap = true;
-            }
+            if (!isUpdatingMap) { requestAnimationFrame(() => { updateActiveLayerStyle(mode); isUpdatingMap = false; }); isUpdatingMap = true; }
         }
 
-        // REAL-TIME MAP UPDATE LOGIC
         function updateActiveLayerStyle(mode) {
-            // Only update if current view mode matches edited style
             if (document.getElementById('viewMode').value !== mode || !activeLayer) return;
-
             const cf = styleConfig[mode];
-
-            if (mode === 'heatmap') {
-                activeLayer.setOptions({ radius: cf.radius, blur: cf.blur });
-            } else {
-                // Iterate layers to update style without full re-render
-                // Note: activeLayer is a FeatureGroup for points/lines
+            if (mode === 'heatmap') { activeLayer.setOptions({ radius: cf.radius, blur: cf.blur }); } 
+            else {
                 activeLayer.eachLayer(layer => {
-                    if (mode === 'point') {
-                        if (layer.setRadius) layer.setRadius(cf.radius);
-                        if (layer.setStyle) layer.setStyle({ fillColor: cf.color, fillOpacity: cf.opacity, opacity: cf.opacity });
-                    } else if (mode === 'circle') {
-                        if (layer.setRadius) layer.setRadius(cf.radiusScale); // Approximation for circle resizing logic
-                        if (layer.setStyle) layer.setStyle({ color: cf.color, opacity: cf.opacity });
-                    } else if (mode === 'line') {
-                        if (layer instanceof L.Polyline && !(layer instanceof L.CircleMarker)) {
-                            layer.setStyle({ color: cf.color, weight: cf.weight, opacity: cf.opacity });
-                        }
-                    }
+                    if (mode === 'point') { if (layer.setRadius) layer.setRadius(cf.radius); if (layer.setStyle) layer.setStyle({ fillColor: cf.color, fillOpacity: cf.opacity, opacity: cf.opacity }); }
+                    else if (mode === 'circle') { if (layer.setRadius) layer.setRadius(cf.radiusScale); if (layer.setStyle) layer.setStyle({ color: cf.color, opacity: cf.opacity }); }
+                    else if (mode === 'line') { if (layer instanceof L.Polyline && !(layer instanceof L.CircleMarker)) layer.setStyle({ color: cf.color, weight: cf.weight, opacity: cf.opacity }); }
                 });
             }
         }
 
-        function applyStyles() {
-            // Full re-render just in case to ensure consistency
-            renderLayer(); 
-            toggleModal('settingsModal', false);
-        }
-        
-        function resetStyles() {
-            styleConfig = JSON.parse(JSON.stringify(defaultStyles));
-            const currentTab = document.querySelector('.setting-tab-active').id.replace('tab-', '');
-            if(currentTab !== 'api') renderStyleControls(currentTab);
-            renderLayer();
-        }
+        function applyStyles() { renderLayer(); toggleModal('settingsModal', false); }
+        function resetStyles() { styleConfig = JSON.parse(JSON.stringify(defaultStyles)); const t = document.querySelector('.setting-tab-active').id.replace('tab-', ''); if(t!=='api') renderStyleControls(t); renderLayer(); }
 
-        // --- DATA HANDLING ---
+        // --- DATA ---
         function toggleModal(id, show) {
             const m = document.getElementById(id);
             if(show) { m.classList.remove('hidden'); setTimeout(()=>m.classList.remove('opacity-0'),10); }
@@ -486,72 +385,43 @@
             });
 
             let combinedKey = null;
-            if (!latKey || !lonKey) {
-                keys.forEach(k => {
-                    const val = json[0][k];
-                    if (typeof val === 'string' && val.trim().match(/^-?\d+(\.\d+)?\s+-?\d+(\.\d+)?$/)) {
-                        combinedKey = k;
-                    }
-                });
-            }
-
+            if (!latKey || !lonKey) { keys.forEach(k => { const val = json[0][k]; if (typeof val === 'string' && val.trim().match(/^-?\d+(\.\d+)?\s+-?\d+(\.\d+)?$/)) combinedKey = k; }); }
             if(!latKey && !lonKey && !combinedKey) return alert("Kolom Latitude/Longitude tidak ditemukan.");
 
             json.forEach(row => {
                 let lat, lng;
-                if (combinedKey) {
-                    const parts = row[combinedKey].toString().trim().split(/\s+/);
-                    if(parts.length >= 2) { lat = parseFloat(parts[0]); lng = parseFloat(parts[1]); }
-                } else {
-                    lat = parseFloat(row[latKey]); lng = parseFloat(row[lonKey]);
-                }
+                if (combinedKey) { const parts = row[combinedKey].toString().trim().split(/\s+/); if(parts.length >= 2) { lat = parseFloat(parts[0]); lng = parseFloat(parts[1]); } } 
+                else { lat = parseFloat(row[latKey]); lng = parseFloat(row[lonKey]); }
 
                 if(!isNaN(lat) && !isNaN(lng)) {
                     let d = dateKey ? row[dateKey] : new Date().toISOString().split('T')[0];
                     let t = timeKey ? row[timeKey] : "00:00";
                     let s = speedKey ? parseFloat(row[speedKey]) : null;
-
                     if(typeof d === 'number') d = new Date(Math.round((d - 25569)*86400*1000)).toISOString().split('T')[0];
-                    if(typeof t === 'number') {
-                        let sec = Math.round(t * 86400);
-                        t = `${String(Math.floor(sec/3600)).padStart(2,'0')}:${String(Math.floor((sec%3600)/60)).padStart(2,'0')}`;
-                    }
+                    if(typeof t === 'number') { let sec = Math.round(t * 86400); t = `${String(Math.floor(sec/3600)).padStart(2,'0')}:${String(Math.floor((sec%3600)/60)).padStart(2,'0')}`; }
                     newData.push({lat, lng, date:d, time:t, speed:s});
                 }
             });
 
-            if(newData.length > 0) {
-                rawData = newData; displayData = [...rawData];
-                map.fitBounds(L.latLngBounds(newData.map(d=>[d.lat,d.lng])));
-                updateUI();
-                toggleModal('dataEntryModal', false);
-            } else alert("Data tidak valid.");
+            if(newData.length > 0) { rawData = newData; displayData = [...rawData]; map.fitBounds(L.latLngBounds(newData.map(d=>[d.lat,d.lng]))); updateUI(); toggleModal('dataEntryModal', false); } 
+            else alert("Data tidak valid.");
         }
 
-        function resetUpload() {
-            document.getElementById('fileInput').value = '';
-            document.getElementById('fileInfo').classList.add('hidden');
-            document.getElementById('dropZone').classList.remove('hidden');
-        }
-
+        function resetUpload() { document.getElementById('fileInput').value = ''; document.getElementById('fileInfo').classList.add('hidden'); document.getElementById('dropZone').classList.remove('hidden'); }
         function generateDummyData() {
             rawData=[]; const clat=-6.200, clng=106.816;
             for(let i=0; i<50; i++) {
                 let spd = Math.random() > 0.2 ? Math.floor(Math.random()*100) : 0;
-                rawData.push({
-                    lat: clat+(Math.random()-0.5)*0.05, lng: clng+(Math.random()-0.5)*0.05,
-                    date: '2023-11-22', time: `${String(Math.floor(Math.random()*24)).padStart(2,'0')}:00`,
-                    speed: spd
-                });
+                // Generate sequential time for demo
+                let h = Math.floor(i/2); let m = (i%2)*30;
+                rawData.push({ lat: clat+(Math.random()-0.5)*0.05, lng: clng+(Math.random()-0.5)*0.05, date: '2023-11-22', time: `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`, speed: spd });
             }
-            displayData=[...rawData]; map.fitBounds(L.latLngBounds(rawData.map(d=>[d.lat,d.lng])));
-            updateUI(); toggleModal('dataEntryModal', false);
+            displayData=[...rawData]; map.fitBounds(L.latLngBounds(rawData.map(d=>[d.lat,d.lng]))); updateUI(); toggleModal('dataEntryModal', false);
         }
 
         function openDataManager() {
             toggleModal('dataManagerModal', true);
-            const tbody = document.getElementById('dataTableBody');
-            tbody.innerHTML = '';
+            const tbody = document.getElementById('dataTableBody'); tbody.innerHTML = '';
             document.getElementById('managerCount').innerText = rawData.length;
             const limit = Math.min(rawData.length, 100);
             for(let i=0; i<limit; i++) {
@@ -560,20 +430,14 @@
                 tbody.innerHTML += `<tr><td class="text-gray-400 text-xs">${i+1}</td><td>${d.date}</td><td>${d.time}</td><td>${d.lat.toFixed(4)}</td><td>${d.lng.toFixed(4)}</td><td>${spd}</td><td class="text-center"><i class="fa-solid fa-trash-can btn-delete-row cursor-pointer text-red-500" onclick="deleteRow(${i})"></i></td></tr>`;
             }
         }
-
-        function deleteRow(i) {
-            if(confirm("Hapus?")) { rawData.splice(i,1); displayData=[...rawData]; openDataManager(); updateUI(); }
-        }
-        function clearAllData() {
-            if(confirm("Hapus SEMUA?")) { rawData=[]; displayData=[]; openDataManager(); updateUI(); }
-        }
+        function deleteRow(i) { if(confirm("Hapus?")) { rawData.splice(i,1); displayData=[...rawData]; openDataManager(); updateUI(); } }
+        function clearAllData() { if(confirm("Hapus SEMUA?")) { rawData=[]; displayData=[]; openDataManager(); updateUI(); } }
         function updateUI() { document.getElementById('dataCount').innerText = `${displayData.length} Data`; renderLayer(); }
 
-        // --- VISUALIZATION & RENDER ---
+        // --- RENDER & STOP LOGIC ---
         function renderLayer() {
             if(map.getSize().x === 0) { setTimeout(renderLayer, 200); return; }
             if(activeLayer) { map.removeLayer(activeLayer); activeLayer=null; }
-            
             const mode = document.getElementById('viewMode').value;
             const cf = styleConfig[mode];
 
@@ -581,17 +445,25 @@
                 activeLayer = L.heatLayer(displayData.map(d=>[d.lat,d.lng,0.8]), { radius: cf.radius, blur: cf.blur }).addTo(map);
                 setupClick(true);
             } else if(mode === 'line') {
+                // 1. Sorting data by Date & Time for sequential path
                 const sortedData = [...displayData].sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`));
+                
                 activeLayer = L.featureGroup();
+                // Draw continuous line based on sorted data
                 const latlngs = sortedData.map(d => [d.lat, d.lng]);
                 L.polyline(latlngs, { color: cf.color, weight: cf.weight, opacity: cf.opacity }).addTo(activeLayer);
 
                 const stops = detectStops(sortedData);
                 stops.forEach(stop => {
-                    const durationMin = Math.floor(stop.duration / 60000);
-                    const durationStr = durationMin < 1 ? "< 1 Menit" : durationMin >= 60 ? `${Math.floor(durationMin/60)} Jam ${durationMin%60} Menit` : `${durationMin} Menit`;
+                    // 2. Duration Formatting
+                    const d = Math.floor(stop.duration / 1000); // total seconds
+                    const h = Math.floor(d / 3600);
+                    const m = Math.floor((d % 3600) / 60);
+                    const s = d % 60;
+                    const durationStr = `${h} Jam ${m} Menit ${s} Detik`;
+
                     L.circleMarker([stop.lat, stop.lng], { radius: 8, fillColor: '#ef4444', color: '#ffffff', weight: 2, fillOpacity: 1 })
-                     .bindPopup(`<div class='text-center font-sans'><b class='text-red-600'>🛑 BERHENTI</b><br><span class='text-xs'>Durasi: <b>${durationStr}</b></span><br><div class='mt-1 pt-1 border-t text-xs text-gray-600'>${stop.startTime} - ${stop.endTime}</div></div>`)
+                     .bindPopup(`<div class='text-center font-sans'><b class='text-red-600'>🛑 BERHENTI</b><br><span class='text-xs font-bold'>${durationStr}</span><br><div class='mt-1 pt-1 border-t text-xs text-gray-600'>${stop.startTime} - ${stop.endTime}</div></div>`)
                      .addTo(activeLayer);
                 });
                 activeLayer.addTo(map);
@@ -615,44 +487,39 @@
             const stops = [];
             if (data.length < 2) return stops;
             const hasSpeed = data.some(d => d.speed !== null && d.speed !== undefined);
+            const DIST_THRESHOLD = 50; // 50 meters radius check
 
-            if (hasSpeed) {
-                let stopStart = null;
-                let stopEnd = null;
-                for (let i = 0; i < data.length; i++) {
-                    const p = data[i];
-                    if (p.speed === 0) {
-                        if (!stopStart) { stopStart = p; }
-                        stopEnd = p; 
-                    } else {
-                        if (stopStart) {
-                            let startTime = new Date(`${stopStart.date}T${stopStart.time}`);
-                            let endTime = new Date(`${stopEnd.date}T${stopEnd.time}`);
-                            if (!isNaN(startTime) && !isNaN(endTime)) stops.push({ lat: stopStart.lat, lng: stopStart.lng, startTime: stopStart.time, endTime: stopEnd.time, duration: endTime - startTime });
-                            stopStart = null; stopEnd = null;
+            // Combined Logic: Speed=0 OR Distance < 50m
+            let stopStart = null;
+            let stopEnd = null;
+
+            for (let i = 0; i < data.length - 1; i++) {
+                const curr = data[i];
+                const next = data[i+1];
+                
+                // Check condition: Speed is 0 OR distance to next point is very small
+                const dist = map.distance([curr.lat, curr.lng], [next.lat, next.lng]);
+                const isStopped = (curr.speed !== null && curr.speed === 0) || (dist < DIST_THRESHOLD);
+
+                if (isStopped) {
+                    if (!stopStart) stopStart = curr;
+                    stopEnd = next;
+                } else {
+                    if (stopStart && stopEnd) {
+                        let start = new Date(`${stopStart.date}T${stopStart.time}`);
+                        let end = new Date(`${stopEnd.date}T${stopEnd.time}`);
+                        if(!isNaN(start) && !isNaN(end)) {
+                            stops.push({ lat: stopStart.lat, lng: stopStart.lng, startTime: stopStart.time, endTime: stopEnd.time, duration: end - start });
                         }
+                        stopStart = null; stopEnd = null;
                     }
                 }
-                if (stopStart && stopEnd) {
-                    let startTime = new Date(`${stopStart.date}T${stopStart.time}`);
-                    let endTime = new Date(`${stopEnd.date}T${stopEnd.time}`);
-                    if (!isNaN(startTime) && !isNaN(endTime)) stops.push({ lat: stopStart.lat, lng: stopStart.lng, startTime: stopStart.time, endTime: stopEnd.time, duration: endTime - startTime });
-                }
-            } else {
-                const DIST_THRESHOLD = 50; const TIME_THRESHOLD = 60 * 1000;
-                let startNode = data[0]; let startTime = new Date(`${startNode.date}T${startNode.time}`); let lastNode = startNode;
-                for (let i = 1; i < data.length; i++) {
-                    const currentNode = data[i];
-                    const dist = map.distance([startNode.lat, startNode.lng], [currentNode.lat, currentNode.lng]);
-                    if (dist < DIST_THRESHOLD) { lastNode = currentNode; } else {
-                        let endTime = new Date(`${lastNode.date}T${lastNode.time}`);
-                        if (!isNaN(startTime) && !isNaN(endTime)) {
-                            const duration = endTime - startTime;
-                            if (duration >= TIME_THRESHOLD) stops.push({ lat: startNode.lat, lng: startNode.lng, startTime: startNode.time, endTime: lastNode.time, duration: duration });
-                        }
-                        startNode = currentNode; startTime = new Date(`${startNode.date}T${startNode.time}`); lastNode = startNode;
-                    }
-                }
+            }
+            // Check tail
+            if (stopStart && stopEnd) {
+                let start = new Date(`${stopStart.date}T${stopStart.time}`);
+                let end = new Date(`${stopEnd.date}T${stopEnd.time}`);
+                if(!isNaN(start) && !isNaN(end)) stops.push({ lat: stopStart.lat, lng: stopStart.lng, startTime: stopStart.time, endTime: stopEnd.time, duration: end - start });
             }
             return stops;
         }
@@ -676,104 +543,44 @@
             return `<div class='text-center'><b>Data Info</b><br>📅 ${d.date}<br>⏰ ${d.time}${spdInfo}<br>${d.lat.toFixed(5)}, ${d.lng.toFixed(5)}<br><a href="https://www.google.com/maps?q=&layer=c&cbll=${d.lat},${d.lng}" target="_blank" class="text-blue-600 underline text-xs">Street View</a></div>`;
         }
 
+        // --- AI & MISC ---
         async function callAI(prompt) {
-            const key = getApiKey();
-            if(!key) return alert("Masukkan API Key di Pengaturan (⚙️) dulu!");
+            const key = getApiKey(); if(!key) return alert("API Key Needed!");
             document.getElementById('aiProcessing').style.display = 'flex';
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`, {
-                    method: 'POST', headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ contents: [{parts:[{text: prompt}]}] })
+                    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ contents: [{parts:[{text: prompt}]}] })
                 });
-                const d = await res.json();
-                return d.candidates[0].content.parts[0].text;
-            } catch(e) { alert("Gagal koneksi AI."); throw e; }
-            finally { document.getElementById('aiProcessing').style.display = 'none'; }
+                const d = await res.json(); return d.candidates[0].content.parts[0].text;
+            } catch(e) { alert("AI Error"); } finally { document.getElementById('aiProcessing').style.display = 'none'; }
         }
-
         async function handleAICommand() {
-            const q = document.getElementById('aiCommandInput').value.trim();
-            if(!q) return;
-            const coordRegex = /^(-?\d+(\.\d+)?)[,\s]+(-?\d+(\.\d+)?)$/;
-            const match = q.match(coordRegex);
-            if (match) { map.setView([parseFloat(match[1]), parseFloat(match[3])], 15); L.popup().setLatLng([parseFloat(match[1]), parseFloat(match[3])]).setContent(`<b>📍 Koordinat</b><br>${match[1]}, ${match[3]}`).openOn(map); return; }
-            const prompt = `User: "${q}". JSON ONLY: { "action": "NAVIGATE"|"FILTER"|"RESET", "lat": num, "lng": num, "zoom": 13, "label": "name", "expr": "JS bool (d.date,d.time,d.lat)" }`;
-            try {
-                const txt = await callAI(prompt);
-                const act = JSON.parse(txt.replace(/```json|```/g,'').trim());
-                if(act.action==='NAVIGATE') { map.setView([act.lat,act.lng], 13); L.popup().setLatLng([act.lat,act.lng]).setContent(`📍 ${act.label}`).openOn(map); }
-                else if(act.action==='FILTER') {
-                    const fn = new Function('d', `try{return ${act.expr}}catch{return false}`);
-                    const f = rawData.filter(fn);
-                    if(f.length) { displayData=f; updateUI(); } else alert("0 Data.");
-                } else if(act.action==='RESET') resetFilter();
+            const q = document.getElementById('aiCommandInput').value.trim(); if(!q) return;
+            const cr = /^(-?\d+(\.\d+)?)[,\s]+(-?\d+(\.\d+)?)$/; const m = q.match(cr);
+            if (m) { map.setView([parseFloat(m[1]), parseFloat(m[3])], 15); L.popup().setLatLng([parseFloat(m[1]), parseFloat(m[3])]).setContent(`📍 ${m[1]}, ${m[3]}`).openOn(map); return; }
+            const p = `User: "${q}". JSON ONLY: { "action": "NAVIGATE"|"FILTER"|"RESET", "lat": num, "lng": num, "zoom": 13, "label": "name", "expr": "JS bool (d.date,d.time,d.lat)" }`;
+            try { const t = await callAI(p); const a = JSON.parse(t.replace(/```json|```/g,'').trim());
+                if(a.action==='NAVIGATE') { map.setView([a.lat,a.lng], 13); L.popup().setLatLng([a.lat,a.lng]).setContent(`📍 ${a.label}`).openOn(map); }
+                else if(a.action==='FILTER') { const f = rawData.filter(new Function('d', `try{return ${a.expr}}catch{return false}`)); if(f.length) { displayData=f; updateUI(); } else alert("0 Data."); }
+                else if(a.action==='RESET') resetFilter();
             } catch(e) { console.log(e); }
         }
-
-        async function askAIGeneral() {
-            if(!displayData.length) return alert("Data kosong");
-            const s = displayData.slice(0,15).map(d=>`${d.lat},${d.lng},${d.time}`).join('\n');
-            const txt = await callAI(`Analisis data ini (Total ${displayData.length}):\n${s}\nFokus: Rawan kecelakaan?`);
-            showAIResult(txt);
-        }
-
-        async function askAIArea() {
-            if(!currentDrawnLayer) return alert("Gambar area dulu.");
-            const pts = currentDrawnLayer.getLatLngs().toString().substring(0,500);
-            const txt = await callAI(`Analisis area coords: ${pts}... Rawan kecelakaan?`);
-            showAIResult(txt);
-        }
-
-        function showAIResult(txt) {
-            document.getElementById('aiOutput').innerHTML = marked.parse(txt);
-            toggleModal('aiModal', true);
-        }
+        async function askAIGeneral() { if(!displayData.length) return alert("Data kosong"); const s = displayData.slice(0,15).map(d=>`${d.lat},${d.lng},${d.time}`).join('\n'); const txt = await callAI(`Analisis data (Total ${displayData.length}):\n${s}\nFokus: Rawan kecelakaan?`); showAIResult(txt); }
+        async function askAIArea() { if(!currentDrawnLayer) return alert("Gambar area dulu."); const txt = await callAI(`Analisis area: ${currentDrawnLayer.getLatLngs().toString().substring(0,500)}... Rawan kecelakaan?`); showAIResult(txt); }
+        function showAIResult(txt) { document.getElementById('aiOutput').innerHTML = marked.parse(txt); toggleModal('aiModal', true); }
         function closeAIModal() { toggleModal('aiModal', false); }
-
-        function changeBaseMap(t) {
-            Object.values(baseLayers).forEach(l => map.removeLayer(l)); map.addLayer(baseLayers[t]);
-            document.querySelectorAll('.map-btn').forEach(b => { b.classList.toggle('map-btn-active', b.dataset.map===t); b.classList.toggle('text-gray-600', b.dataset.map!==t); });
-        }
-        function toggleMinMax(id, min) {
-            const c = document.getElementById(id);
-            if(min) { c.classList.remove('w-80'); c.classList.add('w-auto'); document.getElementById('mainFullContent').classList.add('hidden'); document.getElementById('mainMiniContent').classList.remove('hidden'); }
-            else { c.classList.remove('w-auto'); c.classList.add('w-80'); document.getElementById('mainMiniContent').classList.add('hidden'); document.getElementById('mainFullContent').classList.remove('hidden'); }
-        }
+        function changeBaseMap(t) { Object.values(baseLayers).forEach(l => map.removeLayer(l)); map.addLayer(baseLayers[t]); document.querySelectorAll('.map-btn').forEach(b => { b.classList.toggle('map-btn-active', b.dataset.map===t); b.classList.toggle('text-gray-600', b.dataset.map!==t); }); }
+        function toggleMinMax(id, min) { const c = document.getElementById(id); if(min) { c.classList.remove('w-80'); c.classList.add('w-auto'); document.getElementById('mainFullContent').classList.add('hidden'); document.getElementById('mainMiniContent').classList.remove('hidden'); } else { c.classList.remove('w-auto'); c.classList.add('w-80'); document.getElementById('mainMiniContent').classList.add('hidden'); document.getElementById('mainFullContent').classList.remove('hidden'); } }
         function resetFilter() { displayData=[...rawData]; updateUI(); document.getElementById('aiCommandInput').value=''; }
-
-        // --- MAIN SLIDER SMOOTH UPDATE ---
-        document.getElementById('radiusSlider').addEventListener('input', function() {
-            if (!isUpdatingMap) {
-                requestAnimationFrame(() => {
-                    const val = parseInt(this.value);
-                    if (document.getElementById('viewMode').value === 'heatmap' && activeLayer) {
-                        activeLayer.setOptions({ radius: val });
-                    } else {
-                        renderLayer(); // Fallback for other modes, ideally also optimized
-                    }
-                    isUpdatingMap = false;
-                });
-                isUpdatingMap = true;
-            }
-        });
-
-        // --- DRAW ---
-        const drawControl = new L.Control.Draw({ draw: { polyline:{metric:true}, polygon:{showArea:true}, rectangle:{showArea:true}, circle:false, marker:false }, edit: { featureGroup: drawnItems } });
-        map.addControl(drawControl);
+        document.getElementById('radiusSlider').addEventListener('input', function() { if (!isUpdatingMap) { requestAnimationFrame(() => { const val = parseInt(this.value); if (document.getElementById('viewMode').value === 'heatmap' && activeLayer) { activeLayer.setOptions({ radius: val }); } else { renderLayer(); } isUpdatingMap = false; }); isUpdatingMap = true; } });
+        const drawControl = new L.Control.Draw({ draw: { polyline:{metric:true}, polygon:{showArea:true}, rectangle:{showArea:true}, circle:false, marker:false }, edit: { featureGroup: drawnItems } }); map.addControl(drawControl);
         map.on(L.Draw.Event.CREATED, e => { drawnItems.clearLayers(); drawnItems.addLayer(e.layer); currentDrawnLayer=e.layer; document.getElementById('measurePanel').classList.remove('hidden'); updateMeasure(e.layer); });
-        function updateMeasure(l) {
-            let val=0; 
-            if(l.getLatLngs) { const lls = l.getLatLngs().flat(2); for(let i=0; i<lls.length-1; i++) val += lls[i].distanceTo(lls[i+1]); }
-            document.getElementById('measureResult').innerText = (val/1000).toFixed(2);
-        }
+        function updateMeasure(l) { let val=0; if(l.getLatLngs) { const lls = l.getLatLngs().flat(2); for(let i=0; i<lls.length-1; i++) val += lls[i].distanceTo(lls[i+1]); } document.getElementById('measureResult').innerText = (val/1000).toFixed(2); }
         function clearDrawings() { drawnItems.clearLayers(); currentDrawnLayer=null; document.getElementById('measurePanel').classList.add('hidden'); }
-
-        // --- DRAG ---
         let activeDragEl=null, initialX, initialY; const dragOffsets = {'controlContainer':{x:0,y:0}, 'measurePanel':{x:0,y:0}};
         document.addEventListener("mousedown", e => { let h = e.target.closest('.draggable-header'); if(!h || e.target.closest('button') || e.target.closest('input')) return; const id = h.getAttribute('data-target'); if(id) { activeDragEl = document.getElementById(id); initialX = e.clientX - dragOffsets[id].x; initialY = e.clientY - dragOffsets[id].y; } });
         document.addEventListener("mouseup", () => activeDragEl=null);
         document.addEventListener("mousemove", e => { if(activeDragEl) { e.preventDefault(); const x = e.clientX - initialX; const y = e.clientY - initialY; dragOffsets[activeDragEl.id] = {x,y}; activeDragEl.style.transform = `translate3d(${x}px, ${y}px, 0)`; } });
-
     </script>
 </body>
 </html>
