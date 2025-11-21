@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Geo-Analisis Pro (Custom Style)</title>
+    <title>Dashboard Geo-Analisis Pro (Support Spasi)</title>
     
     <style>
         body { margin: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; background-color: #f3f4f6; }
@@ -54,10 +54,10 @@
 
     <!-- Overlays -->
     <div id="aiProcessing" class="fixed top-4 right-4 bg-white z-[9999] hidden items-center gap-3 p-3 rounded-lg shadow-lg border border-blue-100 animate-bounce-in">
-        <div class="loader"></div> <span class="text-xs text-gray-700 font-bold">AI Sedang Bekerja...</span>
+        <div class="loader"></div> <span class="text-xs text-gray-700 font-bold">Memproses...</span>
     </div>
 
-    <!-- SETTINGS MODAL (NEW: Style & API Key) -->
+    <!-- SETTINGS MODAL -->
     <div id="settingsModal" class="fixed inset-0 bg-black/60 z-[9999] hidden flex items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity duration-300">
         <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300">
             <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
@@ -109,9 +109,10 @@
             </div>
             <div class="p-8 flex flex-col items-center">
                 <div id="dropZone" class="file-drop-zone w-full h-48 rounded-xl flex flex-col items-center justify-center cursor-pointer mb-4 relative">
-                    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleFileSelect(this)">
+                    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleFileSelect(this)">
                     <i class="fa-solid fa-cloud-arrow-up text-4xl text-blue-400 mb-3"></i>
                     <p class="text-sm text-gray-600 font-medium">Tarik File Excel ke sini</p>
+                    <p class="text-xs text-gray-400 mt-1">Support: .xlsx, .csv (Bisa format "Lat Spasi Lon")</p>
                 </div>
                 <div id="fileInfo" class="hidden w-full bg-green-50 border border-green-200 rounded-lg p-3 flex justify-between items-center">
                     <span class="text-xs text-green-800 font-medium"><i class="fa-solid fa-check-circle mr-1"></i> <span id="fileName">file.xlsx</span></span>
@@ -171,9 +172,10 @@
                 </div>
 
                 <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100 space-y-2">
-                    <label class="text-[10px] font-bold text-indigo-800 uppercase"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> AI Assistant</label>
+                    <label class="text-[10px] font-bold text-indigo-800 uppercase"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> AI & Pencarian</label>
                     <div class="relative">
-                        <input type="text" id="aiCommandInput" placeholder="Cari lokasi atau filter..." class="ai-input w-full text-xs p-2 pr-8 rounded border border-gray-300" onkeypress="if(event.key==='Enter') handleAICommand()">
+                        <!-- Updated Placeholder to show format -->
+                        <input type="text" id="aiCommandInput" placeholder="Cth: -3.33944 114.56820" class="ai-input w-full text-xs p-2 pr-8 rounded border border-gray-300" onkeypress="if(event.key==='Enter') handleAICommand()">
                         <button onclick="handleAICommand()" class="absolute right-1 top-1 text-indigo-600 p-1"><i class="fa-solid fa-paper-plane"></i></button>
                     </div>
                     <div class="flex justify-between text-[10px]">
@@ -244,7 +246,7 @@
             point: { color: '#f97316', radius: 5, opacity: 0.9 },
             circle: { color: '#ef4444', radiusScale: 20, opacity: 0.5 },
             line: { color: '#2563eb', weight: 3, opacity: 0.8 },
-            heatmap: { radius: 25, blur: 15, opacity: 0.8 } // opacity not directly supported by simple L.heat options but handled via gradient transparency
+            heatmap: { radius: 25, blur: 15, opacity: 0.8 }
         };
 
         const map = L.map('map', {center: [-6.200, 106.816], zoom: 11, zoomControl: false, preferCanvas: true});
@@ -265,7 +267,6 @@
             const key = document.getElementById('apiKeyInput').value.trim();
             if(key) { localStorage.setItem('gemini_api_key', key); alert("API Key tersimpan!"); }
         }
-        // Load saved key on start
         document.getElementById('apiKeyInput').value = getApiKey();
 
         // --- STYLE EDITOR LOGIC ---
@@ -309,12 +310,11 @@
         function updateConfig(mode, key, val) {
             if(key !== 'color') val = parseFloat(val);
             styleConfig[mode][key] = val;
-            // Update labels immediately if any
-            renderStyleControls(mode); // Simple redraw to update numbers
+            renderStyleControls(mode);
         }
 
         function applyStyles() {
-            renderLayer(); // Re-render map with new styles
+            renderLayer(); 
             toggleModal('settingsModal', false);
         }
 
@@ -350,10 +350,34 @@
                 else if(l.includes('date')||l.includes('tgl')) dateKey=k; else if(l.includes('time')||l.includes('jam')) timeKey=k;
             });
 
-            if(!latKey || !lonKey) return alert("Kolom Latitude/Longitude tidak ditemukan.");
+            // Fallback Logic: If keys are not found, check for combined column with space
+            let combinedKey = null;
+            if (!latKey || !lonKey) {
+                keys.forEach(k => {
+                    const val = json[0][k];
+                    if (typeof val === 'string' && val.trim().match(/^-?\d+(\.\d+)?\s+-?\d+(\.\d+)?$/)) {
+                        combinedKey = k;
+                    }
+                });
+            }
+
+            if(!latKey && !lonKey && !combinedKey) return alert("Kolom Latitude/Longitude tidak ditemukan.");
 
             json.forEach(row => {
-                const lat = parseFloat(row[latKey]), lng = parseFloat(row[lonKey]);
+                let lat, lng;
+                
+                if (combinedKey) {
+                    // Parse from single column "Lat Lon"
+                    const parts = row[combinedKey].toString().trim().split(/\s+/);
+                    if(parts.length >= 2) {
+                        lat = parseFloat(parts[0]);
+                        lng = parseFloat(parts[1]);
+                    }
+                } else {
+                    lat = parseFloat(row[latKey]);
+                    lng = parseFloat(row[lonKey]);
+                }
+
                 if(!isNaN(lat) && !isNaN(lng)) {
                     // Simple date/time fallback
                     let d = dateKey ? row[dateKey] : new Date().toISOString().split('T')[0];
@@ -398,7 +422,6 @@
             const tbody = document.getElementById('dataTableBody');
             tbody.innerHTML = '';
             document.getElementById('managerCount').innerText = rawData.length;
-            document.getElementById('emptyDataMessage').classList.toggle('hidden', rawData.length > 0);
             
             const limit = Math.min(rawData.length, 100);
             for(let i=0; i<limit; i++) {
@@ -479,8 +502,22 @@
         }
 
         async function handleAICommand() {
-            const q = document.getElementById('aiCommandInput').value;
+            const q = document.getElementById('aiCommandInput').value.trim();
             if(!q) return;
+
+            // 1. Check for Lat,Lon Pattern first (Matches "lat,lon" or "lat lon")
+            const coordRegex = /^(-?\d+(\.\d+)?)[,\s]+(-?\d+(\.\d+)?)$/;
+            const match = q.match(coordRegex);
+
+            if (match) {
+                const lat = parseFloat(match[1]);
+                const lng = parseFloat(match[3]);
+                map.setView([lat, lng], 15);
+                L.popup().setLatLng([lat, lng]).setContent(`<b>📍 Koordinat</b><br>${lat}, ${lng}`).openOn(map);
+                return; // Stop here, don't call AI
+            }
+
+            // 2. If not coordinates, call AI
             const prompt = `User: "${q}". JSON ONLY: { "action": "NAVIGATE"|"FILTER"|"RESET", "lat": num, "lng": num, "zoom": 13, "label": "name", "expr": "JS bool (d.date,d.time,d.lat)" }`;
             try {
                 const txt = await callAI(prompt);
