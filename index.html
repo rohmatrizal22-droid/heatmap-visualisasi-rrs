@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Geo-Analisis Pro (Support Spasi)</title>
+    <title>Dashboard Geo-Analisis Pro (Stop Detection)</title>
     
     <style>
         body { margin: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; background-color: #f3f4f6; }
@@ -174,7 +174,6 @@
                 <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100 space-y-2">
                     <label class="text-[10px] font-bold text-indigo-800 uppercase"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> AI & Pencarian</label>
                     <div class="relative">
-                        <!-- Updated Placeholder to show format -->
                         <input type="text" id="aiCommandInput" placeholder="Cth: -3.33944 114.56820" class="ai-input w-full text-xs p-2 pr-8 rounded border border-gray-300" onkeypress="if(event.key==='Enter') handleAICommand()">
                         <button onclick="handleAICommand()" class="absolute right-1 top-1 text-indigo-600 p-1"><i class="fa-solid fa-paper-plane"></i></button>
                     </div>
@@ -199,7 +198,7 @@
                         <option value="heatmap">🔥 Heatmap</option>
                         <option value="point">📍 Titik</option>
                         <option value="circle">⭕ Lingkaran</option>
-                        <option value="line">📈 Garis</option>
+                        <option value="line">📈 Garis (Jalur)</option>
                     </select>
                 </div>
 
@@ -394,6 +393,7 @@
             });
 
             if(newData.length > 0) {
+                // Add to existing or replace? Let's replace for simplicity as per dashboard logic usually
                 rawData = newData; displayData = [...rawData];
                 map.fitBounds(L.latLngBounds(newData.map(d=>[d.lat,d.lng])));
                 updateUI();
@@ -450,7 +450,57 @@
                 activeLayer = L.heatLayer(displayData.map(d=>[d.lat,d.lng,0.8]), { radius: cf.radius, blur: cf.blur }).addTo(map);
                 setupClick(true);
             } else if(mode === 'line') {
-                activeLayer = L.polyline(displayData.map(d=>[d.lat,d.lng]), { color: cf.color, weight: cf.weight, opacity: cf.opacity }).addTo(map);
+                // SORT DATA BY TIME FOR LINE DRAWING
+                const sortedData = [...displayData].sort((a, b) => {
+                    const dateA = new Date(`${a.date}T${a.time}`);
+                    const dateB = new Date(`${b.date}T${b.time}`);
+                    return dateA - dateB;
+                });
+
+                // Create FeatureGroup for lines and markers
+                activeLayer = L.featureGroup();
+                
+                // Draw Main Line
+                const latlngs = sortedData.map(d => [d.lat, d.lng]);
+                L.polyline(latlngs, { color: cf.color, weight: cf.weight, opacity: cf.opacity }).addTo(activeLayer);
+
+                // STOP DETECTION LOGIC
+                const stops = detectStops(sortedData);
+                
+                // Render Stop Markers
+                stops.forEach(stop => {
+                    const durationMin = Math.floor(stop.duration / 60000);
+                    const durationHours = Math.floor(durationMin / 60);
+                    const remainingMin = durationMin % 60;
+                    const durationStr = durationHours > 0 ? `${durationHours} Jam ${remainingMin} Menit` : `${durationMin} Menit`;
+
+                    const stopMarker = L.circleMarker([stop.lat, stop.lng], {
+                        radius: 8, // Slightly larger than typical points
+                        fillColor: '#ef4444', // Red for stop
+                        color: '#ffffff',
+                        weight: 2,
+                        fillOpacity: 1
+                    });
+
+                    const popupContent = `
+                        <div class='text-center font-sans'>
+                            <b class='text-red-600'>🛑 TERDETEKSI BERHENTI</b><br>
+                            <span class='text-xs'>Durasi: <b>${durationStr}</b></span><br>
+                            <div class='mt-1 pt-1 border-t text-xs text-gray-600'>
+                                Mulai: ${stop.startDate} ${stop.startTime}<br>
+                                Selesai: ${stop.endDate} ${stop.endTime}
+                            </div>
+                            <div class='mt-1 text-[10px] text-gray-400'>
+                                ${stop.lat.toFixed(5)}, ${stop.lng.toFixed(5)}
+                            </div>
+                        </div>
+                    `;
+                    
+                    stopMarker.bindPopup(popupContent);
+                    stopMarker.addTo(activeLayer);
+                });
+
+                activeLayer.addTo(map);
                 setupClick(false);
             } else {
                 activeLayer = L.featureGroup();
@@ -465,6 +515,75 @@
                 }
                 activeLayer.addTo(map);
             }
+        }
+
+        function detectStops(data) {
+            const stops = [];
+            if (data.length < 2) return stops;
+
+            const DIST_THRESHOLD = 50; // meters (Adjustable sensitivity)
+            const TIME_THRESHOLD = 60 * 1000; // 1 minute minimum to consider as stop
+
+            let startNode = data[0];
+            let startTime = new Date(`${startNode.date}T${startNode.time}`);
+            // Validate Date
+            if(isNaN(startTime.getTime())) startTime = new Date(); 
+
+            let lastNode = startNode;
+
+            for (let i = 1; i < data.length; i++) {
+                const currentNode = data[i];
+                // Calculate distance in meters
+                const dist = map.distance([startNode.lat, startNode.lng], [currentNode.lat, currentNode.lng]);
+
+                if (dist < DIST_THRESHOLD) {
+                    // Still in the same place
+                    lastNode = currentNode;
+                } else {
+                    // Moved away, check if previous segment was a stop
+                    let endTime = new Date(`${lastNode.date}T${lastNode.time}`);
+                    if(isNaN(endTime.getTime())) endTime = new Date();
+
+                    const duration = endTime - startTime;
+
+                    if (duration >= TIME_THRESHOLD) {
+                        stops.push({
+                            lat: startNode.lat,
+                            lng: startNode.lng,
+                            startTime: startNode.time,
+                            startDate: startNode.date,
+                            endTime: lastNode.time,
+                            endDate: lastNode.date,
+                            duration: duration
+                        });
+                    }
+
+                    // Reset for new segment
+                    startNode = currentNode;
+                    startTime = new Date(`${startNode.date}T${startNode.time}`);
+                    if(isNaN(startTime.getTime())) startTime = new Date();
+                    lastNode = startNode;
+                }
+            }
+            
+            // Check potential stop at the end of the path
+            let endTime = new Date(`${lastNode.date}T${lastNode.time}`);
+            if(!isNaN(endTime.getTime())) {
+                const duration = endTime - startTime;
+                if (duration >= TIME_THRESHOLD) {
+                    stops.push({
+                        lat: startNode.lat,
+                        lng: startNode.lng,
+                        startTime: startNode.time,
+                        startDate: startNode.date,
+                        endTime: lastNode.time,
+                        endDate: lastNode.date,
+                        duration: duration
+                    });
+                }
+            }
+
+            return stops;
         }
 
         function setupClick(isHeatmap) {
