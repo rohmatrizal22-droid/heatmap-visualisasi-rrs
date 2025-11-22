@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Geo-Analisis (Tricolor UI)</title>
+    <title>Dashboard Geo-Analisis (Click to Locate)</title>
     
     <style>
         /* 1. BASE THEME: Deep Blue Background */
@@ -50,7 +50,9 @@
         .data-table { width: 100%; text-align: left; border-collapse: collapse; font-size: 0.75rem; }
         .data-table th { position: sticky; top: 0; background: #f1f5f9; padding: 10px 8px; border-bottom: 2px solid #cbd5e1; color: #334155; font-weight: 700; }
         .data-table td { padding: 8px; border-bottom: 1px solid #f1f5f9; color: #475569; }
-        .data-table tr:hover { background-color: #f8fafc; }
+        
+        /* Row Hover Effect for Clickable Rows */
+        .data-table tr:hover { background-color: #e0f2fe; cursor: pointer; }
         
         /* File Upload Zone */
         .file-drop-zone { border: 2px dashed #93c5fd; transition: all 0.3s; background: #f0f9ff; border-radius: 12px; }
@@ -169,6 +171,7 @@
                 <div class="data-table-container flex-1 custom-scrollbar">
                     <table class="data-table" id="mainDataTable"></table>
                 </div>
+                <p class="text-[10px] text-slate-400 mt-2 text-center italic">Klik baris untuk melihat lokasi di peta</p>
             </div>
         </div>
     </div>
@@ -294,10 +297,13 @@
         const map = L.map('map', {center: [-6.200, 106.816], zoom: 11, zoomControl: false, preferCanvas: true});
         L.control.zoom({position: 'bottomright'}).addTo(map);
 
-        const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { 
-            maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'], attribution: 'Map data ©2024 Google'
-        });
-        googleHybrid.addTo(map);
+        // HTTPS Google Maps Layers (Default: Satellite)
+        const baseLayers = {
+            'google_road': L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'] }),
+            'google_sat': L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'] }), 
+            'google_terrain': L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'] })
+        };
+        baseLayers['google_sat'].addTo(map);
         const drawnItems = new L.FeatureGroup().addTo(map);
 
         // --- CUSTOM PEGMAN CONTROL ---
@@ -375,6 +381,7 @@
         // --- EXPORTED GLOBAL FUNCTIONS ---
         window.analyzeLocation = analyzeLocation;
         window.analyzeDataPoint = analyzeDataPoint;
+        window.zoomToData = zoomToData; // EXPORT ZOOM FUNCTION
 
         // --- FUNCTIONS ---
         function getApiKey() { return localStorage.getItem('gemini_api_key') || ""; }
@@ -520,17 +527,27 @@
             const limit = Math.min(rawData.length, 100);
             for(let i=0; i<limit; i++) {
                 const d = rawData[i];
-                tbody += `<tr><td class="text-gray-400 text-xs">${i+1}</td>`;
+                tbody += `<tr class="hover:bg-blue-50 cursor-pointer transition-colors" onclick="zoomToData(${i})" title="Klik untuk lihat di peta">
+                    <td class="text-gray-400 text-xs">${i+1}</td>`;
                 headers.forEach(h => {
                     let val = d.props[h];
                     if(typeof val === 'object' && val !== null) val = JSON.stringify(val);
                     if(typeof val === 'number' && val % 1 !== 0) val = val.toFixed(5);
                     tbody += `<td>${val !== undefined ? val : '-'}</td>`;
                 });
-                tbody += `<td class="text-center"><i class="fa-solid fa-trash-can btn-delete-row cursor-pointer text-red-500" onclick="deleteRow(${i})"></i></td></tr>`;
+                tbody += `<td class="text-center" onclick="event.stopPropagation()"><i class="fa-solid fa-trash-can btn-delete-row cursor-pointer text-red-500" onclick="deleteRow(${i})"></i></td></tr>`;
             }
             tbody += '</tbody>';
             table.innerHTML += tbody;
+        }
+
+        function zoomToData(index) {
+            const d = rawData[index];
+            if(!d) return;
+            toggleModal('dataManagerModal', false);
+            map.flyTo([d.lat, d.lng], 18, { duration: 1.5 });
+            const content = createPopup(d);
+            L.popup().setLatLng([d.lat, d.lng]).setContent(content).openOn(map);
         }
 
         function deleteRow(i) { if(confirm("Hapus?")) { rawData.splice(i,1); displayData=[...rawData]; openDataManager(); updateUI(); } }
@@ -546,9 +563,18 @@
             const radiusVal = parseInt(document.getElementById('radiusSlider').value);
 
             if(mode === 'heatmap') {
+                // Population Density Style Gradient
                 activeLayer = L.heatLayer(displayData.map(d=>[d.lat,d.lng, 1]), { 
-                    radius: cf.radius, blur: cf.blur, max: cf.max,
-                    gradient: {0.0: 'navy', 0.3: 'blue', 0.5: 'lime', 0.7: 'yellow', 1.0: 'red'}
+                    radius: cf.radius, 
+                    blur: cf.blur, 
+                    max: cf.max,
+                    gradient: {
+                        0.0: 'navy',    // Sparse
+                        0.3: 'blue',
+                        0.5: 'lime',    // Medium
+                        0.7: 'yellow',
+                        1.0: 'red'      // Dense
+                    }
                 }).addTo(map);
                 setupClick(true);
             } else if(mode === 'line') {
