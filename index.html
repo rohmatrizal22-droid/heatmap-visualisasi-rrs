@@ -54,7 +54,7 @@
 
     <!-- Overlays -->
     <div id="aiProcessing" class="fixed top-4 right-4 bg-white z-[9999] hidden items-center gap-3 p-3 rounded-lg shadow-lg border border-blue-100 animate-bounce-in">
-        <div class="loader"></div> <span class="text-xs text-gray-700 font-bold">Memproses...</span>
+        <div class="loader"></div> <span class="text-xs text-gray-700 font-bold">Menganalisis Kelas Jalan...</span>
     </div>
 
     <!-- SETTINGS MODAL -->
@@ -70,7 +70,6 @@
                     <button onclick="switchStyleTab('point')" class="style-tab setting-tab-active w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-point"><i class="fa-solid fa-circle-dot text-orange-500"></i> Titik (Point)</button>
                     <button onclick="switchStyleTab('circle')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-circle"><i class="fa-regular fa-circle text-red-500"></i> Lingkaran (Radius)</button>
                     <button onclick="switchStyleTab('line')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-line"><i class="fa-solid fa-route text-blue-500"></i> Garis (Line)</button>
-                    <!-- Heatmap Removed -->
                     <div class="my-2 border-t border-gray-200"></div>
                     <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 px-2">Sistem</div>
                     <button onclick="switchStyleTab('api')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-api"><i class="fa-solid fa-key text-gray-600"></i> API Key</button>
@@ -151,7 +150,7 @@
     <div id="aiModal" class="fixed inset-0 bg-black/50 z-[9999] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
         <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
             <div class="p-4 border-b bg-gradient-to-r from-indigo-600 to-purple-600 rounded-t-2xl flex justify-between items-center">
-                <h3 class="text-white font-bold"><i class="fa-solid fa-robot mr-2"></i> Analisis AI</h3>
+                <h3 class="text-white font-bold"><i class="fa-solid fa-robot mr-2"></i> Analisis UU No. 22/2009</h3>
                 <button onclick="closeAIModal()" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             <div id="aiOutput" class="p-6 overflow-y-auto prose text-sm text-gray-700 flex-1 custom-scrollbar"></div>
@@ -187,7 +186,7 @@
                     </div>
                 </div>
 
-                <!-- Only Map Style Info (No Buttons as per request) -->
+                <!-- Only Map Style Info -->
                 <div class="text-xs text-gray-500 text-center italic bg-gray-100 p-1 rounded">
                     Mode Peta: Satelit Hybrid (Google)
                 </div>
@@ -207,7 +206,7 @@
                 </div>
 
                 <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
-                    <button onclick="askAIGeneral()" class="text-xs bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-2 rounded shadow-sm"><i class="fa-solid fa-chart-pie mr-1"></i> Analisis Data</button>
+                    <button onclick="askAIGeneral()" class="text-xs bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-2 rounded shadow-sm"><i class="fa-solid fa-chart-pie mr-1"></i> Analisis Kelas Jalan</button>
                     <button onclick="askAIArea()" class="text-xs bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-2 rounded shadow-sm"><i class="fa-solid fa-vector-square mr-1"></i> Analisis Area</button>
                 </div>
             </div>
@@ -235,7 +234,6 @@
 
     <!-- SCRIPTS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Removed Leaflet Heat JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -279,7 +277,7 @@
                     if (!isUpdatingMap) { 
                         requestAnimationFrame(() => { 
                             const val = parseInt(this.value); 
-                            renderLayer(); // Re-render to apply radius
+                            renderLayer(); 
                             isUpdatingMap = false; 
                         }); 
                         isUpdatingMap = true; 
@@ -471,9 +469,7 @@
                 for(let i=0; i<limit; i++) {
                     const d = displayData[i];
                     let m;
-                    // Use Main Panel slider for quick radius adjustment in simple modes
                     let r = mode === 'point' ? radiusVal/2 : radiusVal * 5; 
-                    // Use config if specifically set via settings
                     if(mode==='point') m = L.circleMarker([d.lat,d.lng], {radius: cf.radius, fillColor: cf.color, color:'#fff', weight:1, fillOpacity: cf.opacity});
                     else m = L.circle([d.lat,d.lng], {radius: cf.radiusScale, color: cf.color, weight:1, opacity: cf.opacity});
                     m.bindPopup(createPopup(d)).addTo(activeLayer);
@@ -521,13 +517,41 @@
                 else if(a.action==='RESET') resetFilter();
             } catch(e) { console.log(e); }
         }
-        async function askAIGeneral() { if(!displayData.length) return alert("Data kosong"); const s = displayData.slice(0,15).map(d=>`${d.lat},${d.lng},${d.time}`).join('\n'); const txt = await callAI(`Analisis data (Total ${displayData.length}):\n${s}\nFokus: Rawan kecelakaan?`); showAIResult(txt); }
-        async function askAIArea() { if(!currentDrawnLayer) return alert("Gambar area dulu."); const txt = await callAI(`Analisis area: ${currentDrawnLayer.getLatLngs().toString().substring(0,500)}... Rawan kecelakaan?`); showAIResult(txt); }
+        
+        async function askAIGeneral() { 
+            if(!displayData.length) return alert("Data kosong"); 
+            const s = displayData.slice(0,15).map(d=>`${d.lat},${d.lng},${d.time}`).join('\n'); 
+            // Updated Prompt for UU 22/2009
+            const prompt = `Berdasarkan sampel data lokasi berikut:\n${s}\nTotal Data: ${displayData.length}.
+            Lakukan analisis Klasifikasi Jalan sesuai Undang-Undang No. 22 Tahun 2009 tentang Lalu Lintas dan Angkutan Jalan.
+            1. Identifikasi estimasi nama jalan atau area.
+            2. Tentukan Fungsi Jalan (Arteri, Kolektor, Lokal, atau Lingkungan).
+            3. Tentukan Status Jalan (Nasional, Provinsi, atau Kabupaten/Kota).
+            4. Berikan analisis singkat mengenai kapasitas dan potensi hambatan lalu lintas di kelas jalan tersebut.`;
+            
+            const txt = await callAI(prompt); 
+            showAIResult(txt); 
+        }
+        
+        async function askAIArea() { 
+            if(!currentDrawnLayer) return alert("Gambar area dulu."); 
+            const pts = currentDrawnLayer.getLatLngs().toString().substring(0,500);
+            // Updated Prompt for UU 22/2009
+            const prompt = `Berdasarkan koordinat vertex area ini: ${pts}...
+            Lakukan analisis Klasifikasi Jalan sesuai UU No. 22 Tahun 2009 di wilayah ini.
+            1. Identifikasi jenis jalan utama yang melintasi area ini.
+            2. Klasifikasikan berdasarkan fungsinya (Arteri/Kolektor/Lokal) dan statusnya.
+            3. Evaluasi apakah karakteristik jalan ini sesuai dengan standar keselamatan UU No. 22/2009 untuk penggunaan saat ini.`;
+            
+            const txt = await callAI(prompt); 
+            showAIResult(txt); 
+        }
+        
         function showAIResult(txt) { document.getElementById('aiOutput').innerHTML = marked.parse(txt); toggleModal('aiModal', true); }
         function closeAIModal() { toggleModal('aiModal', false); }
         function toggleMinMax(id, min) { const c = document.getElementById(id); if(min) { c.classList.remove('w-80'); c.classList.add('w-auto'); document.getElementById('mainFullContent').classList.add('hidden'); document.getElementById('mainMiniContent').classList.remove('hidden'); } else { c.classList.remove('w-auto'); c.classList.add('w-80'); document.getElementById('mainMiniContent').classList.add('hidden'); document.getElementById('mainFullContent').classList.remove('hidden'); } }
         function resetFilter() { displayData=[...rawData]; updateUI(); document.getElementById('aiCommandInput').value=''; }
-        
+        document.getElementById('radiusSlider').addEventListener('input', function() { if (!isUpdatingMap) { requestAnimationFrame(() => { const val = parseInt(this.value); renderLayer(); isUpdatingMap = false; }); isUpdatingMap = true; } });
         const drawControl = new L.Control.Draw({ draw: { polyline:{metric:true}, polygon:{showArea:true}, rectangle:{showArea:true}, circle:false, marker:false }, edit: { featureGroup: drawnItems } }); map.addControl(drawControl);
         map.on(L.Draw.Event.CREATED, e => { drawnItems.clearLayers(); drawnItems.addLayer(e.layer); currentDrawnLayer=e.layer; document.getElementById('measurePanel').classList.remove('hidden'); updateMeasure(e.layer); });
         function updateMeasure(l) { let val=0; if(l.getLatLngs) { const lls = l.getLatLngs().flat(2); for(let i=0; i<lls.length-1; i++) val += lls[i].distanceTo(lls[i+1]); } document.getElementById('measureResult').innerText = (val/1000).toFixed(2); }
