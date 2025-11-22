@@ -3,22 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Geo-Analisis (Globe Style)</title>
+    <title>Dashboard Geo-Analisis (Satellite Mode)</title>
     
     <style>
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; background-color: #1a1a1a; } /* Background gelap agar cocok dengan satelit */
+        /* Dark Theme Base for Satellite Look */
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; background-color: #0f172a; }
         #map { height: 100vh; width: 100%; z-index: 1; }
         
-        /* Glass Panel - Modified for Darker Theme contrast */
+        /* Glass Panel - Darker for Satellite Contrast */
         .glass-panel {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Loaders & UI Elements */
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid #2563eb; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .draggable-header { cursor: grab; } .draggable-header:active { cursor: grabbing; }
@@ -26,7 +26,6 @@
         .map-btn-active { background-color: #eff6ff; border-color: #2563eb; color: #1d4ed8; box-shadow: inset 0 0 0 1px #2563eb; }
         .ai-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2); }
         
-        /* Table & Forms */
         .data-table-container { max-height: 300px; overflow-y: auto; }
         .data-table { width: 100%; text-align: left; border-collapse: collapse; font-size: 0.75rem; }
         .data-table th { position: sticky; top: 0; background: #f9fafb; padding: 8px; border-bottom: 2px solid #e5e7eb; white-space: nowrap; }
@@ -34,7 +33,6 @@
         .file-drop-zone { border: 2px dashed #cbd5e1; transition: all 0.3s; background: #f8fafc; }
         .file-drop-zone:hover { border-color: #3b82f6; background-color: #eff6ff; }
 
-        /* Custom Style Inputs */
         input[type="color"] { -webkit-appearance: none; border: none; width: 40px; height: 40px; border-radius: 8px; cursor: pointer; }
         input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
         input[type="color"]::-webkit-color-swatch { border: none; border-radius: 8px; border: 1px solid #e5e7eb; }
@@ -44,12 +42,7 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
         .prose p { font-size: 0.9em; line-height: 1.5; }
 
-        /* Settings Sidebar Active State */
-        .setting-tab-active {
-            background-color: #eff6ff;
-            color: #2563eb;
-            border-right: 3px solid #2563eb;
-        }
+        .setting-tab-active { background-color: #eff6ff; color: #2563eb; border-right: 3px solid #2563eb; }
     </style>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -57,7 +50,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-gray-100">
+<body class="bg-gray-900">
 
     <!-- Overlays -->
     <div id="aiProcessing" class="fixed top-4 right-4 bg-white z-[9999] hidden items-center gap-3 p-3 rounded-lg shadow-lg border border-blue-100 animate-bounce-in">
@@ -77,15 +70,15 @@
                     <button onclick="switchStyleTab('point')" class="style-tab setting-tab-active w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-point"><i class="fa-solid fa-circle-dot text-orange-500"></i> Titik (Point)</button>
                     <button onclick="switchStyleTab('circle')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-circle"><i class="fa-regular fa-circle text-red-500"></i> Lingkaran (Radius)</button>
                     <button onclick="switchStyleTab('line')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-line"><i class="fa-solid fa-route text-blue-500"></i> Garis (Line)</button>
-                    <button onclick="switchStyleTab('heatmap')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-heatmap"><i class="fa-solid fa-fire text-red-600"></i> Heatmap</button>
+                    <!-- Heatmap Removed -->
                     <div class="my-2 border-t border-gray-200"></div>
                     <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 px-2">Sistem</div>
                     <button onclick="switchStyleTab('api')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-api"><i class="fa-solid fa-key text-gray-600"></i> API Key</button>
                 </div>
                 <div class="w-2/3 p-6 overflow-y-auto custom-scrollbar bg-white relative">
                     <div id="styleContentWrapper">
-                        <h4 class="text-lg font-bold text-gray-800 mb-1" id="styleTitle">Pengaturan Heatmap</h4>
-                        <p class="text-xs text-gray-500 mb-6">Atur radius, blur, dan sensitivitas kepadatan data.</p>
+                        <h4 class="text-lg font-bold text-gray-800 mb-1" id="styleTitle">Pengaturan Titik</h4>
+                        <p class="text-xs text-gray-500 mb-6">Geser slider untuk melihat perubahan secara langsung.</p>
                         <div id="styleControls" class="space-y-6"></div>
                     </div>
                     <div id="apiContentWrapper" class="hidden">
@@ -100,7 +93,7 @@
                             <div class="flex justify-end mt-3">
                                 <button onclick="saveApiKey()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition-colors"><i class="fa-solid fa-save mr-1"></i> Simpan Key</button>
                             </div>
-                            <p class="text-xs text-blue-600 mt-3 flex items-center gap-1"><i class="fa-solid fa-shield-halved"></i> Key disimpan lokal di browser Anda (LocalStorage). Aman untuk GitHub Pages.</p>
+                            <p class="text-xs text-blue-600 mt-3 flex items-center gap-1"><i class="fa-solid fa-shield-halved"></i> Key disimpan lokal di browser.</p>
                         </div>
                     </div>
                 </div>
@@ -148,9 +141,7 @@
                     <button onclick="clearAllData()" class="text-xs bg-red-100 text-red-600 px-3 py-1.5 rounded font-bold hover:bg-red-200">Hapus Semua</button>
                 </div>
                 <div class="data-table-container border border-gray-200 rounded-lg flex-1 custom-scrollbar">
-                    <table class="data-table" id="mainDataTable">
-                        <!-- Dynamic Headers will be inserted here -->
-                    </table>
+                    <table class="data-table" id="mainDataTable"></table>
                 </div>
             </div>
         </div>
@@ -171,7 +162,7 @@
     <div id="controlContainer" class="absolute top-4 left-14 z-[1000] w-80 transition-all duration-300">
         <div id="mainFullContent" class="glass-panel p-4 rounded-xl overflow-hidden">
             <div class="draggable-header text-sm font-bold text-gray-800 mb-3 border-b pb-2 flex justify-between items-center" data-target="controlContainer">
-                <div class="flex items-center gap-2"><i class="fa-solid fa-layer-group text-blue-600"></i> Dashboard Geo</div>
+                <div class="flex items-center gap-2"><i class="fa-solid fa-earth-asia text-blue-600"></i> Dashboard Satelit</div>
                 <div class="flex gap-1">
                     <button onclick="openSettings()" class="text-gray-500 hover:text-blue-600 p-1" title="Pengaturan"><i class="fa-solid fa-gear"></i></button>
                     <button onclick="toggleMinMax('controlContainer', true)" class="text-gray-500 hover:text-blue-600 p-1"><i class="fa-solid fa-compress"></i></button>
@@ -196,26 +187,20 @@
                     </div>
                 </div>
 
-                <div>
-                    <label class="text-xs font-bold text-gray-500 block mb-1.5">Peta Dasar</label>
-                    <div class="grid grid-cols-3 gap-1 bg-gray-100 p-1 rounded-lg">
-                        <button class="map-btn text-[10px] py-1.5 rounded text-gray-600" data-map="google_road" onclick="changeBaseMap('google_road')">Default</button>
-                        <button class="map-btn map-btn-active text-[10px] py-1.5 rounded text-gray-600" data-map="google_sat" onclick="changeBaseMap('google_sat')">Globe/Sat</button>
-                        <button class="map-btn text-[10px] py-1.5 rounded text-gray-600" data-map="google_terrain" onclick="changeBaseMap('google_terrain')">Terrain</button>
-                    </div>
+                <!-- Only Map Style Info (No Buttons as per request) -->
+                <div class="text-xs text-gray-500 text-center italic bg-gray-100 p-1 rounded">
+                    Mode Peta: Satelit Hybrid (Google)
                 </div>
 
                 <div>
                     <label class="text-xs font-bold text-gray-500 block mb-1.5">Mode Visual</label>
                     <select id="viewMode" onchange="renderLayer()" class="w-full bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded-lg p-2">
-                        <option value="heatmap">🔥 Heatmap</option>
-                        <option value="point">📍 Titik</option>
-                        <option value="circle">⭕ Lingkaran</option>
-                        <option value="line">📈 Garis</option>
+                        <option value="point">📍 Titik (Default)</option>
+                        <option value="circle">⭕ Lingkaran (Radius)</option>
+                        <option value="line">📈 Garis (Line)</option>
                     </select>
                 </div>
 
-                <!-- Main Panel Radius Slider -->
                 <div>
                     <label class="text-xs font-bold text-gray-500 block mb-1.5">Ukuran / Radius (Cepat)</label>
                     <input type="range" id="radiusSlider" min="5" max="100" value="25" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
@@ -229,7 +214,7 @@
         </div>
         
         <div id="mainMiniContent" class="hidden draggable-header glass-panel w-12 h-12 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-50 shadow-lg hover:scale-110 transition-transform" onclick="toggleMinMax('controlContainer', false)">
-            <i class="fa-solid fa-layer-group text-blue-600 text-lg"></i>
+            <i class="fa-solid fa-earth-asia text-blue-600 text-lg"></i>
         </div>
     </div>
 
@@ -250,7 +235,7 @@
 
     <!-- SCRIPTS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    <!-- Removed Leaflet Heat JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -264,8 +249,7 @@
         const defaultStyles = {
             point: { color: '#f97316', radius: 5, opacity: 0.9 },
             circle: { color: '#ef4444', radiusScale: 20, opacity: 0.5 },
-            line: { color: '#2563eb', weight: 3, opacity: 0.8 },
-            heatmap: { radius: 25, blur: 15, opacity: 0.8, max: 5 } 
+            line: { color: '#2563eb', weight: 3, opacity: 0.8 }
         };
         let styleConfig = JSON.parse(JSON.stringify(defaultStyles));
 
@@ -273,35 +257,29 @@
         const map = L.map('map', {center: [-6.200, 106.816], zoom: 11, zoomControl: false, preferCanvas: true});
         L.control.zoom({position: 'bottomright'}).addTo(map);
 
-        // Google Maps Layers (Default: Satellite Hybrid)
-        const baseLayers = {
-            'google_road': L.tileLayer('http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'] }),
-            'google_sat': L.tileLayer('http://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'] }), // Hybrid as "Globe"
-            'google_terrain': L.tileLayer('http://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'] })
-        };
-        baseLayers['google_sat'].addTo(map); // Changed default to Satellite
+        // Google Maps Layer ONLY (Hybrid)
+        const googleHybrid = L.tileLayer('http://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { 
+            maxZoom: 22, 
+            subdomains:['mt0','mt1','mt2','mt3'],
+            attribution: 'Map data ©2024 Google'
+        });
+        googleHybrid.addTo(map);
+        
         const drawnItems = new L.FeatureGroup().addTo(map);
 
-        // --- DOM CONTENT LOADED WRAPPER ---
+        // --- DOM LOAD ---
         document.addEventListener('DOMContentLoaded', () => {
-            // API Key Init
             const savedKey = localStorage.getItem('gemini_api_key') || "";
             const keyInput = document.getElementById('apiKeyInput');
             if(keyInput) keyInput.value = savedKey;
 
-            // Slider Listener
             const rSlider = document.getElementById('radiusSlider');
             if(rSlider) {
                 rSlider.addEventListener('input', function() { 
                     if (!isUpdatingMap) { 
                         requestAnimationFrame(() => { 
                             const val = parseInt(this.value); 
-                            if(styleConfig.heatmap) styleConfig.heatmap.radius = val;
-                            if (document.getElementById('viewMode').value === 'heatmap' && activeLayer) { 
-                                activeLayer.setOptions({ radius: val }); 
-                            } else { 
-                                renderLayer(); 
-                            } 
+                            renderLayer(); // Re-render to apply radius
                             isUpdatingMap = false; 
                         }); 
                         isUpdatingMap = true; 
@@ -332,7 +310,7 @@
             const apiWrap = document.getElementById('apiContentWrapper');
             if(mode === 'api') { styleWrap.classList.add('hidden'); apiWrap.classList.remove('hidden'); }
             else { styleWrap.classList.remove('hidden'); apiWrap.classList.add('hidden'); 
-                const titles = { 'point': 'Pengaturan Titik', 'circle': 'Pengaturan Lingkaran', 'line': 'Pengaturan Garis', 'heatmap': 'Pengaturan Heatmap' };
+                const titles = { 'point': 'Pengaturan Titik', 'circle': 'Pengaturan Lingkaran', 'line': 'Pengaturan Garis' };
                 document.getElementById('styleTitle').innerText = titles[mode];
                 renderStyleControls(mode); 
             }
@@ -341,18 +319,12 @@
         function renderStyleControls(mode) {
             const c = document.getElementById('styleControls');
             const cf = styleConfig[mode];
-            let html = '';
-            if (mode === 'heatmap') {
-                html = `<div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Kepadatan untuk Merah (Threshold: <span id="label-${mode}-max">${cf.max}</span>)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="1" max="20" value="${cf.max}" oninput="updateConfig('${mode}', 'max', this.value)"><p class="text-[10px] text-gray-400 mt-1">Geser Kiri: Lebih Sensitif (Cepat Merah). Geser Kanan: Butuh banyak tumpukan.</p></div>
-                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Radius (<span id="label-${mode}-radius">${cf.radius}</span>px)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="5" max="100" value="${cf.radius}" oninput="updateConfig('${mode}', 'radius', this.value)"></div>
-                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Blur (<span id="label-${mode}-blur">${cf.blur}</span>)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="5" max="100" value="${cf.blur}" oninput="updateConfig('${mode}', 'blur', this.value)"></div>`;
-            } else {
-                html = `<div class="bg-gray-50 p-4 rounded-lg border border-gray-100 flex items-center justify-between"><div><label class="text-xs font-bold text-gray-500 block">Warna Utama</label></div><input type="color" value="${cf.color}" onchange="updateConfig('${mode}', 'color', this.value)"></div>
-                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Transparansi (<span id="label-${mode}-opacity">${cf.opacity}</span>)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="0.1" max="1" step="0.1" value="${cf.opacity}" oninput="updateConfig('${mode}', 'opacity', this.value)"></div>`;
-                if(mode === 'point') html += `<div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Ukuran (<span id="label-${mode}-radius">${cf.radius}</span>px)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="2" max="20" value="${cf.radius}" oninput="updateConfig('${mode}', 'radius', this.value)"></div>`;
-                if(mode === 'circle') html += `<div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Skala Radius (<span id="label-${mode}-radiusScale">${cf.radiusScale}</span>x)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="5" max="100" value="${cf.radiusScale}" oninput="updateConfig('${mode}', 'radiusScale', this.value)"></div>`;
-                if(mode === 'line') html += `<div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Ketebalan (<span id="label-${mode}-weight">${cf.weight}</span>px)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="1" max="10" value="${cf.weight}" oninput="updateConfig('${mode}', 'weight', this.value)"></div>`;
-            }
+            let html = `
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-100 flex items-center justify-between"><div><label class="text-xs font-bold text-gray-500 block">Warna Utama</label></div><input type="color" value="${cf.color}" onchange="updateConfig('${mode}', 'color', this.value)"></div>
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Transparansi (<span id="label-${mode}-opacity">${cf.opacity}</span>)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="0.1" max="1" step="0.1" value="${cf.opacity}" oninput="updateConfig('${mode}', 'opacity', this.value)"></div>`;
+            if(mode === 'point') html += `<div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Ukuran (<span id="label-${mode}-radius">${cf.radius}</span>px)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="2" max="20" value="${cf.radius}" oninput="updateConfig('${mode}', 'radius', this.value)"></div>`;
+            if(mode === 'circle') html += `<div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Skala Radius (<span id="label-${mode}-radiusScale">${cf.radiusScale}</span>x)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="5" max="100" value="${cf.radiusScale}" oninput="updateConfig('${mode}', 'radiusScale', this.value)"></div>`;
+            if(mode === 'line') html += `<div class="bg-gray-50 p-4 rounded-lg border border-gray-100"><label class="text-xs font-bold text-gray-500 block mb-2">Ketebalan (<span id="label-${mode}-weight">${cf.weight}</span>px)</label><input type="range" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" min="1" max="10" value="${cf.weight}" oninput="updateConfig('${mode}', 'weight', this.value)"></div>`;
             c.innerHTML = html;
         }
 
@@ -367,14 +339,11 @@
         function updateActiveLayerStyle(mode) {
             if (document.getElementById('viewMode').value !== mode || !activeLayer) return;
             const cf = styleConfig[mode];
-            if (mode === 'heatmap') { activeLayer.setOptions({ radius: cf.radius, blur: cf.blur, max: cf.max }); } 
-            else {
-                activeLayer.eachLayer(layer => {
-                    if (mode === 'point') { if (layer.setRadius) layer.setRadius(cf.radius); if (layer.setStyle) layer.setStyle({ fillColor: cf.color, fillOpacity: cf.opacity, opacity: cf.opacity }); }
-                    else if (mode === 'circle') { if (layer.setRadius) layer.setRadius(cf.radiusScale); if (layer.setStyle) layer.setStyle({ color: cf.color, opacity: cf.opacity }); }
-                    else if (mode === 'line') { if (layer instanceof L.Polyline && !(layer instanceof L.CircleMarker)) layer.setStyle({ color: cf.color, weight: cf.weight, opacity: cf.opacity }); }
-                });
-            }
+            activeLayer.eachLayer(layer => {
+                if (mode === 'point') { if (layer.setRadius) layer.setRadius(cf.radius); if (layer.setStyle) layer.setStyle({ fillColor: cf.color, fillOpacity: cf.opacity, opacity: cf.opacity }); }
+                else if (mode === 'circle') { if (layer.setRadius) layer.setRadius(cf.radiusScale); if (layer.setStyle) layer.setStyle({ color: cf.color, opacity: cf.opacity }); }
+                else if (mode === 'line') { if (layer instanceof L.Polyline && !(layer instanceof L.CircleMarker)) layer.setStyle({ color: cf.color, weight: cf.weight, opacity: cf.opacity }); }
+            });
         }
 
         function applyStyles() { renderLayer(); toggleModal('settingsModal', false); }
@@ -409,7 +378,7 @@
             keys.forEach(k => { const l = k.toLowerCase(); if(l.includes('lat')) latKey=k; else if(l.includes('lon')||l.includes('lng')) lonKey=k; });
             let combinedKey = null;
             if (!latKey || !lonKey) { keys.forEach(k => { const val = json[0][k]; if (typeof val === 'string' && val.trim().match(/^-?\d+(\.\d+)?\s+-?\d+(\.\d+)?$/)) combinedKey = k; }); }
-            if(!latKey && !lonKey && !combinedKey) return alert("Kolom Latitude/Longitude tidak ditemukan. Pastikan ada kolom yang mengandung 'lat' dan 'lon' atau 'lng'.");
+            if(!latKey && !lonKey && !combinedKey) return alert("Kolom Latitude/Longitude tidak ditemukan.");
 
             json.forEach(row => {
                 let lat, lng;
@@ -486,14 +455,9 @@
             if(activeLayer) { map.removeLayer(activeLayer); activeLayer=null; }
             const mode = document.getElementById('viewMode').value;
             const cf = styleConfig[mode];
+            const radiusVal = parseInt(document.getElementById('radiusSlider').value);
 
-            if(mode === 'heatmap') {
-                activeLayer = L.heatLayer(displayData.map(d=>[d.lat,d.lng, 1]), { 
-                    radius: cf.radius, blur: cf.blur, max: cf.max,
-                    gradient: {0.0: 'blue', 0.3: 'lime', 0.5: 'yellow', 0.7: 'orange', 1.0: 'red'}
-                }).addTo(map);
-                setupClick(true);
-            } else if(mode === 'line') {
+            if(mode === 'line') {
                 const sortedData = [...displayData].sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`));
                 activeLayer = L.featureGroup();
                 const latlngs = sortedData.map(d => [d.lat, d.lng]);
@@ -507,6 +471,9 @@
                 for(let i=0; i<limit; i++) {
                     const d = displayData[i];
                     let m;
+                    // Use Main Panel slider for quick radius adjustment in simple modes
+                    let r = mode === 'point' ? radiusVal/2 : radiusVal * 5; 
+                    // Use config if specifically set via settings
                     if(mode==='point') m = L.circleMarker([d.lat,d.lng], {radius: cf.radius, fillColor: cf.color, color:'#fff', weight:1, fillOpacity: cf.opacity});
                     else m = L.circle([d.lat,d.lng], {radius: cf.radiusScale, color: cf.color, weight:1, opacity: cf.opacity});
                     m.bindPopup(createPopup(d)).addTo(activeLayer);
@@ -517,16 +484,6 @@
 
         function setupClick(isHeatmap) {
             map.off('click');
-            if(isHeatmap) {
-                map.on('click', e => {
-                    let closest=null, minDist=Infinity;
-                    displayData.forEach(d => {
-                        const dist = Math.sqrt(Math.pow(d.lat-e.latlng.lat,2) + Math.pow(d.lng-e.latlng.lng,2));
-                        if(dist < minDist) { minDist=dist; closest=d; }
-                    });
-                    if(closest && minDist < 0.005) L.popup().setLatLng([closest.lat,closest.lng]).setContent(createPopup(closest)).openOn(map);
-                });
-            }
         }
 
         function createPopup(d) {
@@ -568,7 +525,6 @@
         async function askAIArea() { if(!currentDrawnLayer) return alert("Gambar area dulu."); const txt = await callAI(`Analisis area: ${currentDrawnLayer.getLatLngs().toString().substring(0,500)}... Rawan kecelakaan?`); showAIResult(txt); }
         function showAIResult(txt) { document.getElementById('aiOutput').innerHTML = marked.parse(txt); toggleModal('aiModal', true); }
         function closeAIModal() { toggleModal('aiModal', false); }
-        function changeBaseMap(t) { Object.values(baseLayers).forEach(l => map.removeLayer(l)); map.addLayer(baseLayers[t]); document.querySelectorAll('.map-btn').forEach(b => { b.classList.toggle('map-btn-active', b.dataset.map===t); b.classList.toggle('text-gray-600', b.dataset.map!==t); }); }
         function toggleMinMax(id, min) { const c = document.getElementById(id); if(min) { c.classList.remove('w-80'); c.classList.add('w-auto'); document.getElementById('mainFullContent').classList.add('hidden'); document.getElementById('mainMiniContent').classList.remove('hidden'); } else { c.classList.remove('w-auto'); c.classList.add('w-80'); document.getElementById('mainMiniContent').classList.add('hidden'); document.getElementById('mainFullContent').classList.remove('hidden'); } }
         function resetFilter() { displayData=[...rawData]; updateUI(); document.getElementById('aiCommandInput').value=''; }
         
