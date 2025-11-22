@@ -550,7 +550,7 @@
             const dataStr = JSON.stringify(d.props).replace(/"/g, '&quot;');
             content += `
                 <div class="mt-2 pt-2 border-t border-gray-100 flex gap-1">
-                    <a href="https://www.google.com/maps?q=&layer=c&cbll=${d.lat},${d.lng}" target="_blank" class="flex-1 bg-Pink-400 hover:bg-yellow-500 text-white text-[10px] font-bold py-1 px-2 rounded text-center"><i class="fa-solid fa-street-view"></i> SV</a>
+                    <a href="https://www.google.com/maps?q=&layer=c&cbll=${d.lat},${d.lng}" target="_blank" class="flex-1 bg-red-400 hover:bg-yellow-500 text-white text-[10px] font-bold py-1 px-2 rounded text-center"><i class="fa-solid fa-street-view"></i> SV</a>
                     <button onclick='analyzeDataPoint(${d.lat}, ${d.lng}, ${dataStr})' class="flex-1 bg-indigo-600 hover:bg-green-700 text-white text-[10px] font-bold py-1 px-2 rounded"><i class="fa-solid fa-robot"></i> AI</button>
                 </div>
             </div>`;
@@ -682,4 +682,5 @@
     </script>
 </body>
 </html>
+
 
