@@ -3,30 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Geo-Analisis (Click to Locate)</title>
+    <title>Dashboard Geo-Analisis (High Performance 100k+)</title>
     
     <style>
-        /* 1. BASE THEME: Deep Blue Background */
+        /* 1. BASE THEME */
         body { margin: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; background-color: #0f172a; }
         #map { height: 100vh; width: 100%; z-index: 1; cursor: crosshair; }
         
-        /* 2. GLASS PANEL: White with Blue Tint & Border */
+        /* 2. GLASS PANEL */
         .glass-panel {
             background: rgba(255, 255, 255, 0.96);
             backdrop-filter: blur(16px);
-            border: 1px solid rgba(59, 130, 246, 0.3); /* Blue Border */
+            border: 1px solid rgba(59, 130, 246, 0.3);
             box-shadow: 0 8px 32px rgba(15, 23, 42, 0.5);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* 3. COMPONENTS COLORS */
+        /* 3. COMPONENTS */
         .loader { border: 3px solid #dbeafe; border-top: 3px solid #2563eb; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        .draggable-header { cursor: grab; color: #1e3a8a; /* Dark Blue Text */ } 
+        .draggable-header { cursor: grab; color: #1e3a8a; } 
         .draggable-header:active { cursor: grabbing; }
         
-        /* Map Style Buttons */
         .map-btn { transition: all 0.2s; font-weight: 600; border: 1px solid #bfdbfe; background-color: #eff6ff; color: #1d4ed8; }
         .map-btn:hover { background-color: #dbeafe; border-color: #3b82f6; }
         .map-btn-active { background-color: #2563eb !important; border-color: #1e40af !important; color: #ffffff !important; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.4); }
@@ -34,43 +33,28 @@
         .ai-input { border: 1px solid #cbd5e1; color: #334155; }
         .ai-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2); }
         
-        /* Pegman (Street View) */
-        .custom-pegman-control {
-            background: white; border-radius: 6px; border: 1px solid #bfdbfe;
-            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.3); cursor: pointer;
-            width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
-            margin-bottom: 12px !important; transition: all 0.2s; color: #1e40af;
-        }
-        .custom-pegman-control:hover { background: #eff6ff; color: #2563eb; }
-        .pegman-active { background: #22c55e !important; color: white !important; border-color: #16a34a !important; } /* Green for Active */
-        .cursor-streetview { cursor: url('https://maps.gstatic.com/mapfiles/openhand_8_8.cur'), pointer !important; }
-
-        /* Data Tables */
         .data-table-container { max-height: 300px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
         .data-table { width: 100%; text-align: left; border-collapse: collapse; font-size: 0.75rem; }
         .data-table th { position: sticky; top: 0; background: #f1f5f9; padding: 10px 8px; border-bottom: 2px solid #cbd5e1; color: #334155; font-weight: 700; }
         .data-table td { padding: 8px; border-bottom: 1px solid #f1f5f9; color: #475569; }
-        
-        /* Row Hover Effect for Clickable Rows */
         .data-table tr:hover { background-color: #e0f2fe; cursor: pointer; }
         
-        /* File Upload Zone */
         .file-drop-zone { border: 2px dashed #93c5fd; transition: all 0.3s; background: #f0f9ff; border-radius: 12px; }
         .file-drop-zone:hover { border-color: #2563eb; background-color: #dbeafe; }
 
-        /* Custom Inputs */
         input[type="color"] { -webkit-appearance: none; border: none; width: 40px; height: 40px; border-radius: 8px; cursor: pointer; }
         input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
         input[type="color"]::-webkit-color-swatch { border: none; border-radius: 8px; border: 1px solid #cbd5e1; }
         
-        /* Scrollbar */
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
-
-        .prose p { font-size: 0.9em; line-height: 1.5; color: #334155; }
+        
         .setting-tab-active { background-color: #eff6ff; color: #1d4ed8; border-right: 4px solid #2563eb; }
+
+        /* Progress Bar */
+        .progress-container { width: 100%; background-color: #e2e8f0; border-radius: 999px; height: 6px; margin-top: 10px; overflow: hidden; }
+        .progress-bar { height: 100%; background-color: #2563eb; width: 0%; transition: width 0.3s ease; }
     </style>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -82,7 +66,20 @@
 
     <!-- AI Processing Overlay -->
     <div id="aiProcessing" class="fixed top-4 right-4 bg-white z-[9999] hidden items-center gap-3 p-3 rounded-lg shadow-lg border border-blue-200 animate-bounce-in">
-        <div class="loader"></div> <span class="text-xs text-blue-900 font-bold">AI Sedang Menganalisis...</span>
+        <div class="loader"></div> <span class="text-xs text-blue-900 font-bold" id="aiStatusText">AI Sedang Menganalisis...</span>
+    </div>
+
+    <!-- DATA LOADER OVERLAY (New for Large Data) -->
+    <div id="dataLoader" class="fixed inset-0 bg-black/70 z-[10000] hidden flex-col items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm text-center">
+            <div class="loader mx-auto mb-3"></div>
+            <h3 class="text-gray-800 font-bold text-lg mb-1">Memproses Data Besar</h3>
+            <p class="text-xs text-gray-500 mb-3" id="loaderStatus">Membaca file...</p>
+            <div class="progress-container">
+                <div class="progress-bar" id="loaderProgress"></div>
+            </div>
+            <p class="text-[10px] text-gray-400 mt-2 italic">Mohon tunggu, jangan tutup halaman.</p>
+        </div>
     </div>
 
     <!-- SETTINGS MODAL -->
@@ -137,7 +134,7 @@
     <div id="dataEntryModal" class="fixed inset-0 bg-black/60 z-[9999] hidden flex items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity duration-300">
         <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden">
             <div class="p-4 border-b border-green-100 bg-green-50 flex justify-between items-center">
-                <h3 class="font-bold text-green-900"><i class="fa-solid fa-file-excel text-green-600 mr-2"></i> Upload Excel Bebas</h3>
+                <h3 class="font-bold text-green-900"><i class="fa-solid fa-file-excel text-green-600 mr-2"></i> Upload Excel (Max 100k+)</h3>
                 <button onclick="toggleModal('dataEntryModal', false)" class="text-gray-400 hover:text-red-500 transition-colors"><i class="fa-solid fa-times"></i></button>
             </div>
             <div class="p-8 flex flex-col items-center">
@@ -145,13 +142,13 @@
                     <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleFileSelect(this)">
                     <i class="fa-solid fa-cloud-arrow-up text-5xl text-blue-300 mb-3"></i>
                     <p class="text-sm text-slate-600 font-medium">Tarik File Excel ke sini</p>
-                    <p class="text-xs text-slate-400 mt-1">Support: .xlsx, .csv (Lat, Lon)</p>
+                    <p class="text-xs text-slate-400 mt-1">Support Large Files: .xlsx, .csv (Lat, Lon)</p>
                 </div>
                 <div id="fileInfo" class="hidden w-full bg-green-50 border border-green-200 rounded-lg p-3 flex justify-between items-center">
                     <span class="text-xs text-green-800 font-medium"><i class="fa-solid fa-check-circle mr-1"></i> <span id="fileName">file.xlsx</span></span>
                     <button onclick="resetUpload()" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-times"></i></button>
                 </div>
-                <button onclick="generateDummyData()" class="mt-4 w-full py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">Generate Data Dummy</button>
+                <button onclick="generateDummyData()" class="mt-4 w-full py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">Generate Dummy (50k Data)</button>
             </div>
         </div>
     </div>
@@ -171,7 +168,7 @@
                 <div class="data-table-container flex-1 custom-scrollbar">
                     <table class="data-table" id="mainDataTable"></table>
                 </div>
-                <p class="text-[10px] text-slate-400 mt-2 text-center italic">Klik baris untuk melihat lokasi di peta</p>
+                <p class="text-[10px] text-slate-400 mt-2 text-center italic">Menampilkan max 500 data pertama untuk performa</p>
             </div>
         </div>
     </div>
@@ -297,13 +294,11 @@
         const map = L.map('map', {center: [-6.200, 106.816], zoom: 11, zoomControl: false, preferCanvas: true});
         L.control.zoom({position: 'bottomright'}).addTo(map);
 
-        // HTTPS Google Maps Layers (Default: Satellite)
-        const baseLayers = {
-            'google_road': L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'] }),
-            'google_sat': L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'] }), 
-            'google_terrain': L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'] })
-        };
-        baseLayers['google_sat'].addTo(map);
+        // HTTPS Google Maps Layers
+        const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { 
+            maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'], attribution: 'Map data ©2024 Google'
+        });
+        googleHybrid.addTo(map);
         const drawnItems = new L.FeatureGroup().addTo(map);
 
         // --- CUSTOM PEGMAN CONTROL ---
@@ -381,7 +376,7 @@
         // --- EXPORTED GLOBAL FUNCTIONS ---
         window.analyzeLocation = analyzeLocation;
         window.analyzeDataPoint = analyzeDataPoint;
-        window.zoomToData = zoomToData; // EXPORT ZOOM FUNCTION
+        window.zoomToData = zoomToData;
 
         // --- FUNCTIONS ---
         function getApiKey() { return localStorage.getItem('gemini_api_key') || ""; }
@@ -457,59 +452,117 @@
             else { m.classList.add('opacity-0'); setTimeout(()=>m.classList.add('hidden'),300); }
         }
 
+        // NEW: CHUNK PROCESSING FOR LARGE DATA
         function handleFileSelect(input) {
             const file = input.files[0];
             if (!file) return;
             document.getElementById('fileName').innerText = file.name;
             document.getElementById('fileInfo').classList.remove('hidden');
             document.getElementById('dropZone').classList.add('hidden');
+            
             const reader = new FileReader();
             reader.onload = function(e) {
-                const wb = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
-                const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                processData(json);
+                document.getElementById('dataLoader').style.display = 'flex'; // Show Loader
+                document.getElementById('loaderStatus').innerText = "Membaca data...";
+                
+                setTimeout(() => { // Break stack
+                    const wb = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+                    const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    processDataInChunks(json);
+                }, 50);
             };
             reader.readAsArrayBuffer(file);
         }
 
-        function processData(json) {
+        // CHUNKING FUNCTION
+        function processDataInChunks(json) {
             let newData = [];
             let latKey, lonKey;
             const keys = Object.keys(json[0] || {});
+            
+            // Key detection
             keys.forEach(k => { const l = k.toLowerCase(); if(l.includes('lat')) latKey=k; else if(l.includes('lon')||l.includes('lng')) lonKey=k; });
             let combinedKey = null;
             if (!latKey || !lonKey) { keys.forEach(k => { const val = json[0][k]; if (typeof val === 'string' && val.trim().match(/^-?\d+(\.\d+)?\s+-?\d+(\.\d+)?$/)) combinedKey = k; }); }
-            if(!latKey && !lonKey && !combinedKey) return alert("Kolom Latitude/Longitude tidak ditemukan.");
 
-            json.forEach(row => {
-                let lat, lng;
-                if (combinedKey) { const parts = row[combinedKey].toString().trim().split(/[\s,;]+/); if(parts.length >= 2) { lat = parseFloat(parts[0]); lng = parseFloat(parts[1]); } } 
-                else { lat = parseFloat(row[latKey]); lng = parseFloat(row[lonKey]); }
+            if(!latKey && !lonKey && !combinedKey) {
+                document.getElementById('dataLoader').style.display = 'none';
+                alert("Kolom Latitude/Longitude tidak ditemukan.");
+                return;
+            }
 
-                if(!isNaN(lat) && !isNaN(lng)) {
-                    newData.push({ lat: lat, lng: lng, props: row });
+            const total = json.length;
+            const chunkSize = 5000; // Process 5000 rows at a time
+            let index = 0;
+
+            function processChunk() {
+                const end = Math.min(index + chunkSize, total);
+                for (let i = index; i < end; i++) {
+                    const row = json[i];
+                    let lat, lng;
+                    if (combinedKey) { const parts = row[combinedKey].toString().trim().split(/[\s,;]+/); if(parts.length >= 2) { lat = parseFloat(parts[0]); lng = parseFloat(parts[1]); } } 
+                    else { lat = parseFloat(row[latKey]); lng = parseFloat(row[lonKey]); }
+
+                    if(!isNaN(lat) && !isNaN(lng)) {
+                        newData.push({ lat: lat, lng: lng, props: row });
+                    }
                 }
-            });
 
-            if(newData.length > 0) { rawData = newData; displayData = [...rawData]; map.fitBounds(L.latLngBounds(newData.map(d=>[d.lat,d.lng]))); updateUI(); toggleModal('dataEntryModal', false); } 
-            else alert("Data tidak valid.");
+                index = end;
+                const pct = Math.round((index / total) * 100);
+                document.getElementById('loaderProgress').style.width = pct + "%";
+                document.getElementById('loaderStatus').innerText = `Memproses: ${index} / ${total}`;
+
+                if (index < total) {
+                    setTimeout(processChunk, 0); // Yield to main thread
+                } else {
+                    // Done
+                    finishProcessing(newData);
+                }
+            }
+
+            processChunk();
+        }
+
+        function finishProcessing(data) {
+            if(data.length > 0) { 
+                rawData = data; 
+                displayData = [...rawData]; 
+                
+                // Sample bounds calculation for performance
+                const sample = data.slice(0, 1000);
+                map.fitBounds(L.latLngBounds(sample.map(d=>[d.lat,d.lng]))); 
+                
+                updateUI(); 
+                toggleModal('dataEntryModal', false); 
+            } else alert("Data tidak valid.");
+            
+            document.getElementById('dataLoader').style.display = 'none';
         }
 
         function resetUpload() { document.getElementById('fileInput').value = ''; document.getElementById('fileInfo').classList.add('hidden'); document.getElementById('dropZone').classList.remove('hidden'); }
+        
         function generateDummyData() {
-            rawData=[]; const clat=-6.200, clng=106.816;
-            for(let i=0; i<100; i++) {
-                const u = 1 - Math.random(); const v = 1 - Math.random();
-                const randStdNormal = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
-                let lat = clat + (randStdNormal * 0.02); let lng = clng + ((Math.random() - 0.5) * 0.04);
-                let spd = Math.random() > 0.2 ? Math.floor(Math.random()*100) : 0;
-                let h = Math.floor(i/2); let m = (i%2)*30;
-                let time = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-                let date = '2023-11-22';
-                let row = { 'Latitude': lat, 'Longitude': lng, 'Tanggal': date, 'Jam': time, 'Kecepatan': spd, 'Driver': 'Budi' };
-                rawData.push({ lat: lat, lng: lng, props: row });
-            }
-            displayData=[...rawData]; map.fitBounds(L.latLngBounds(rawData.map(d=>[d.lat,d.lng]))); updateUI(); toggleModal('dataEntryModal', false);
+            document.getElementById('dataLoader').style.display = 'flex';
+            document.getElementById('loaderStatus').innerText = "Generating Dummy Data...";
+            
+            setTimeout(() => {
+                rawData=[]; const clat=-6.200, clng=106.816;
+                for(let i=0; i<50000; i++) { // Increased dummy size to test performance
+                    let h = Math.floor(i/100); 
+                    let time = `${h}:00`;
+                    let row = { 'Latitude': clat, 'Longitude': clng, 'Time': time, 'Info': 'Large Data' };
+                    // Cluster around center
+                    const lat = clat+(Math.random()-0.5)*0.5;
+                    const lng = clng+(Math.random()-0.5)*0.5;
+                    rawData.push({ lat: lat, lng: lng, props: row });
+                }
+                displayData=[...rawData]; 
+                map.fitBounds(L.latLngBounds(rawData.slice(0,1000).map(d=>[d.lat,d.lng])));
+                updateUI(); 
+                toggleModal('dataEntryModal', false);
+                document.getElementById('dataLoader').style.display = 'none';
+            }, 500);
         }
 
         function openDataManager() {
@@ -524,7 +577,8 @@
             thead += '<th class="w-10 text-center">Aksi</th></tr></thead>';
             table.innerHTML = thead;
             let tbody = '<tbody>';
-            const limit = Math.min(rawData.length, 100);
+            // Still limit display in table for performance
+            const limit = Math.min(rawData.length, 500);
             for(let i=0; i<limit; i++) {
                 const d = rawData[i];
                 tbody += `<tr class="hover:bg-blue-50 cursor-pointer transition-colors" onclick="zoomToData(${i})" title="Klik untuk lihat di peta">
@@ -560,42 +614,53 @@
             if(activeLayer) { map.removeLayer(activeLayer); activeLayer=null; }
             const mode = document.getElementById('viewMode').value;
             const cf = styleConfig[mode];
-            const radiusVal = parseInt(document.getElementById('radiusSlider').value);
 
+            // PERFORMANCE CHECK
+            const total = displayData.length;
+            
             if(mode === 'heatmap') {
-                // Population Density Style Gradient
+                // Heatmap handles 100k fine
                 activeLayer = L.heatLayer(displayData.map(d=>[d.lat,d.lng, 1]), { 
-                    radius: cf.radius, 
-                    blur: cf.blur, 
-                    max: cf.max,
-                    gradient: {
-                        0.0: 'navy',    // Sparse
-                        0.3: 'blue',
-                        0.5: 'lime',    // Medium
-                        0.7: 'yellow',
-                        1.0: 'red'      // Dense
-                    }
+                    radius: cf.radius, blur: cf.blur, max: cf.max,
+                    gradient: {0.0: 'navy', 0.3: 'blue', 0.5: 'lime', 0.7: 'yellow', 1.0: 'red'}
                 }).addTo(map);
                 setupClick(true);
             } else if(mode === 'line') {
+                // Line handles 100k decent on canvas
                 activeLayer = L.featureGroup();
                 const latlngs = displayData.map(d => [d.lat, d.lng]);
                 L.polyline(latlngs, { color: cf.color, weight: cf.weight, opacity: cf.opacity }).addTo(activeLayer);
                 activeLayer.addTo(map);
                 setupClick(false);
             } else {
+                // POINTS/CIRCLES: DOWNSAMPLING FOR PERFORMANCE
                 activeLayer = L.featureGroup();
-                setupClick(false);
-                const limit = Math.min(displayData.length, 2000);
-                for(let i=0; i<limit; i++) {
+                
+                let step = 1;
+                let limit = total;
+                
+                // If data > 3000, force downsample or user browser dies
+                if (total > 3000) {
+                    limit = 3000; // Render max 3000 visible points
+                    step = Math.ceil(total / limit);
+                    // Show warning toast or simple alert once
+                    console.warn(`Data too large (${total}). Downsampling display to ~${limit} points.`);
+                }
+
+                for(let i=0; i<total; i+=step) {
                     const d = displayData[i];
                     let m;
-                    let r = mode === 'point' ? radiusVal/2 : radiusVal * 5; 
-                    if(mode==='point') m = L.circleMarker([d.lat,d.lng], {radius: cf.radius, fillColor: cf.color, color:'#fff', weight:1, fillOpacity: cf.opacity});
-                    else m = L.circle([d.lat,d.lng], {radius: cf.radiusScale, color: cf.color, weight:1, opacity: cf.opacity});
+                    // Use Canvas renderer for markers
+                    const markerOpts = { renderer: L.canvas(), radius: cf.radius, fillColor: cf.color, color:'#fff', weight:1, fillOpacity: cf.opacity };
+                    const circleOpts = { renderer: L.canvas(), radius: cf.radiusScale, color: cf.color, weight:1, opacity: cf.opacity };
+
+                    if(mode==='point') m = L.circleMarker([d.lat,d.lng], markerOpts);
+                    else m = L.circle([d.lat,d.lng], circleOpts);
+                    
                     m.bindPopup(createPopup(d)).addTo(activeLayer);
                 }
                 activeLayer.addTo(map);
+                setupClick(false);
             }
         }
 
