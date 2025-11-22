@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Geo-Analisis (Smart Data Info)</title>
+    <title>Dashboard Geo-Analisis (AI Click & Analyze)</title>
     
     <style>
         /* Dark Theme Base for Satellite Look */
         body { margin: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; background-color: #0f172a; }
-        #map { height: 100vh; width: 100%; z-index: 1; }
+        #map { height: 100vh; width: 100%; z-index: 1; cursor: crosshair; } /* Cursor crosshair untuk indikasi bisa diklik */
         
-        /* Glass Panel - Darker for Satellite Contrast */
+        /* Glass Panel */
         .glass-panel {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(12px);
@@ -54,7 +54,7 @@
 
     <!-- Overlays -->
     <div id="aiProcessing" class="fixed top-4 right-4 bg-white z-[9999] hidden items-center gap-3 p-3 rounded-lg shadow-lg border border-blue-100 animate-bounce-in">
-        <div class="loader"></div> <span class="text-xs text-gray-700 font-bold">Menganalisis...</span>
+        <div class="loader"></div> <span class="text-xs text-gray-700 font-bold">AI Sedang Menganalisis...</span>
     </div>
 
     <!-- SETTINGS MODAL -->
@@ -203,7 +203,7 @@
                 </div>
 
                 <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
-                    <button onclick="askAIGeneral()" class="text-xs bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-2 rounded shadow-sm"><i class="fa-solid fa-chart-pie mr-1"></i> Analisis Kelas Jalan</button>
+                    <button onclick="askAIGeneral()" class="text-xs bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-2 rounded shadow-sm"><i class="fa-solid fa-chart-pie mr-1"></i> Analisis Data</button>
                     <button onclick="askAIArea()" class="text-xs bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-2 rounded shadow-sm"><i class="fa-solid fa-vector-square mr-1"></i> Analisis Area</button>
                 </div>
             </div>
@@ -231,7 +231,6 @@
 
     <!-- SCRIPTS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Removed Leaflet Heat JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -241,7 +240,6 @@
         let rawData = [], displayData = [], activeLayer = null;
         let isUpdatingMap = false;
         
-        // Default Config
         const defaultStyles = {
             point: { color: '#f97316', radius: 5, opacity: 0.9 },
             circle: { color: '#ef4444', radiusScale: 20, opacity: 0.5 },
@@ -268,20 +266,33 @@
             const savedKey = localStorage.getItem('gemini_api_key') || "";
             const keyInput = document.getElementById('apiKeyInput');
             if(keyInput) keyInput.value = savedKey;
-
             const rSlider = document.getElementById('radiusSlider');
             if(rSlider) {
                 rSlider.addEventListener('input', function() { 
-                    if (!isUpdatingMap) { 
-                        requestAnimationFrame(() => { 
-                            const val = parseInt(this.value); 
-                            renderLayer(); 
-                            isUpdatingMap = false; 
-                        }); 
-                        isUpdatingMap = true; 
-                    } 
+                    if (!isUpdatingMap) { requestAnimationFrame(() => { renderLayer(); isUpdatingMap = false; }); isUpdatingMap = true; } 
                 });
             }
+            // NEW: General Map Click for AI Analysis
+            map.on('click', function(e) {
+                // Ignore if drawing or measuring
+                if(document.querySelector('.leaflet-draw-tooltip')) return;
+                
+                // Check if we clicked on a marker (handled by marker click), if not show general popup
+                // Leaflet doesn't easily distinguish, so we use a slight timeout or check target
+                // A cleaner way: Popup with "Analisis Lokasi Ini"
+                L.popup()
+                    .setLatLng(e.latlng)
+                    .setContent(`
+                        <div class="text-center font-sans p-1">
+                            <b class="text-gray-700">Lokasi Terpilih</b><br>
+                            <span class="text-xs text-gray-500">${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}</span>
+                            <button onclick="analyzeLocation(${e.latlng.lat}, ${e.latlng.lng})" class="mt-2 w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-1.5 px-2 rounded shadow flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-robot"></i> Analisis Jalan (AI)
+                            </button>
+                        </div>
+                    `)
+                    .openOn(map);
+            });
         });
 
         // --- FUNCTIONS ---
@@ -399,7 +410,6 @@
                 let h = Math.floor(i/2); let m = (i%2)*30;
                 let time = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
                 let date = '2023-11-22';
-                // Create Dummy Props
                 let row = { 'Latitude': clat, 'Longitude': clng, 'Tanggal': date, 'Jam': time, 'Kecepatan': spd, 'Driver': 'Budi', 'Status': 'Aktif' };
                 rawData.push({ lat: clat+(Math.random()-0.5)*0.05, lng: clng+(Math.random()-0.5)*0.05, props: row });
             }
@@ -447,13 +457,14 @@
             const radiusVal = parseInt(document.getElementById('radiusSlider').value);
 
             if(mode === 'line') {
-                // Assuming sequential order from input as we have arbitrary props
                 activeLayer = L.featureGroup();
                 const latlngs = displayData.map(d => [d.lat, d.lng]);
                 L.polyline(latlngs, { color: cf.color, weight: cf.weight, opacity: cf.opacity }).addTo(activeLayer);
                 activeLayer.addTo(map);
+                setupClick(false);
             } else {
                 activeLayer = L.featureGroup();
+                setupClick(false);
                 const limit = Math.min(displayData.length, 2000);
                 for(let i=0; i<limit; i++) {
                     const d = displayData[i];
@@ -470,9 +481,7 @@
         // HELPER: Format Time & Duration
         function formatExcelSerialDate(serial) {
             if (!serial) return "";
-            // Excel base date is 1900-01-01, JS is 1970-01-01. Diff is 25569 days.
             const date = new Date(Math.round((serial - 25569) * 86400 * 1000));
-            // Return DD/MM/YYYY
             const d = String(date.getDate()).padStart(2, '0');
             const m = String(date.getMonth() + 1).padStart(2, '0');
             const y = date.getFullYear();
@@ -481,7 +490,6 @@
 
         function formatExcelSerialTime(serial) {
             if (serial === undefined || serial === null) return "";
-            // Take fraction part if mixed date/time, or assumes pure time fraction < 1
             let frac = serial % 1; 
             let totalSeconds = Math.round(frac * 86400);
             const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
@@ -492,18 +500,19 @@
 
         function formatDuration(secondsInput) {
             if (!secondsInput) return "";
-            // Formula: val / 86400 gives Days (Excel Serial). 
-            // If input is 3600 (1 hour), val/86400 = 0.041666
-            // We want to display HH:MM:SS. 
-            // So we essentially take the fraction (which represents time) and format it.
-            
+            // Logic: Input is ALREADY in seconds? Or Excel number? 
+            // Prompt said: "rumus angka yang ada di data kolom tersebut akan dibagi 86400"
+            // This implies the raw input is in Seconds, and needs to be converted to Excel fraction for display?
+            // OR the user wants to display it as HH:MM:SS.
+            // If input is 300 (seconds), 300/86400 = 0.00347.
+            // Let's assume the value in Excel IS seconds (e.g. 120). 
+            // To display as 00:02:00, we treat it as seconds.
             let val = parseFloat(secondsInput);
-            // The prompt asked to use formula "val / 86400"
-            // Let's calculate the Excel serial fraction
-            let excelSerial = val / 86400;
-            
-            // Now convert that fraction back to readable time string
-            return formatExcelSerialTime(excelSerial);
+            let totalSeconds = Math.round(val);
+            const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+            const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+            const s = String(totalSeconds % 60).padStart(2, '0');
+            return `${h}:${m}:${s}`;
         }
 
         function createPopup(d) {
@@ -514,20 +523,19 @@
                 let displayVal = value;
                 let kLower = key.toLowerCase();
 
-                // 1. Format Dates
                 if ((kLower.includes('start') || kLower.includes('end')) && kLower.includes('date')) {
                     if (typeof value === 'number') displayVal = formatExcelSerialDate(value);
-                    // If string ISO 'YYYY-MM-DD', maybe reformat? Leaving as is if string.
                 }
 
-                // 2. Format Times
                 if ((kLower.includes('start') || kLower.includes('end')) && kLower.includes('time')) {
                     if (typeof value === 'number') displayVal = formatExcelSerialTime(value);
                 }
 
-                // 3. Format Duration (Formula / 86400)
                 if (kLower.includes('duration')) {
-                    // Assume value is the input number to be divided
+                     // Apply formula: value / 86400? The prompt said "rumus angka... akan dibagi 86400". 
+                     // Usually duration in excel IS a fraction of day. If it's seconds in integer, we display as H:M:S directly.
+                     // If the user specifically wants the divison logic for display, it implies the raw data is seconds.
+                     // Let's stick to formatting seconds to readable string.
                     displayVal = formatDuration(value);
                 }
 
@@ -537,31 +545,88 @@
 
                 content += `<div class="flex justify-between text-xs mb-1"><span class="text-gray-500 font-medium mr-2">${key}:</span> <span class="text-gray-800">${displayVal}</span></div>`;
             }
-            content += `<div class="mt-2 pt-2 border-t border-gray-100 text-center"><a href="https://www.google.com/maps?q=&layer=c&cbll=${d.lat},${d.lng}" target="_blank" class="text-blue-600 underline text-xs font-bold">Lihat Street View</a></div>`;
-            content += `</div>`;
+            
+            // NEW: Button for AI Analysis
+            const dataStr = JSON.stringify(d.props).replace(/"/g, '&quot;');
+            content += `
+                <div class="mt-2 pt-2 border-t border-gray-100 flex gap-1">
+                    <a href="https://www.google.com/maps?q=&layer=c&cbll=${d.lat},${d.lng}" target="_blank" class="flex-1 bg-yellow-400 hover:bg-yellow-500 text-white text-[10px] font-bold py-1 px-2 rounded text-center"><i class="fa-solid fa-street-view"></i> SV</a>
+                    <button onclick='analyzeDataPoint(${d.lat}, ${d.lng}, ${dataStr})' class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-1 px-2 rounded"><i class="fa-solid fa-robot"></i> AI</button>
+                </div>
+            </div>`;
             return content;
         }
 
         // --- AI & MISC ---
         async function callAI(prompt) {
-            const key = getApiKey(); if(!key) return alert("API Key Needed!");
+            const key = getApiKey();
+            if(!key) {
+                alert("API Key Needed!");
+                return null;
+            }
             document.getElementById('aiProcessing').style.display = 'flex';
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`, {
                     method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ contents: [{parts:[{text: prompt}]}] })
                 });
-                const d = await res.json(); return d.candidates[0].content.parts[0].text;
-            } catch(e) { alert("AI Error"); } finally { document.getElementById('aiProcessing').style.display = 'none'; }
+                if (!res.ok) throw new Error(`API Error: ${res.status}`);
+                const d = await res.json();
+                if (d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts && d.candidates[0].content.parts[0]) {
+                    return d.candidates[0].content.parts[0].text;
+                } else {
+                    throw new Error("No response text from AI");
+                }
+            } catch(e) {
+                alert("AI Error: " + e.message);
+                return null;
+            } finally {
+                document.getElementById('aiProcessing').style.display = 'none';
+            }
         }
+        
+        // New AI Function for Map Click
+        async function analyzeLocation(lat, lng) {
+            const prompt = `Analisis lokasi di koordinat ${lat}, ${lng}. Lakukan analisis Klasifikasi Jalan sesuai Undang-Undang No. 22 Tahun 2009 tentang Lalu Lintas dan Angkutan Jalan. 
+            1. Identifikasi nama jalan/daerah.
+            2. Tentukan Fungsi Jalan (Arteri/Kolektor/Lokal/Lingkungan).
+            3. Tentukan Status Jalan (Nasional/Provinsi/Kabupaten).
+            4. Analisis kondisi fisik lingkungan sekitar (pemukiman/industri/hutan) berdasarkan koordinat.`;
+            const txt = await callAI(prompt);
+            if (txt) showAIResult(txt);
+        }
+
+        // New AI Function for Data Point
+        async function analyzeDataPoint(lat, lng, props) {
+            const propStr = JSON.stringify(props, null, 2);
+            const prompt = `Analisis titik data ini:\nKoordinat: ${lat}, ${lng}\nData Tambahan:\n${propStr}\n\nLakukan analisis mendalam:
+            1. Klasifikasi Jalan (UU No. 22/2009) di lokasi ini.
+            2. Hubungkan data tambahan (waktu, kecepatan, durasi, dll) dengan kondisi jalan. Apakah ada anomali?
+            3. Berikan rekomendasi keselamatan atau efisiensi.`;
+            const txt = await callAI(prompt);
+            if (txt) showAIResult(txt);
+        }
+
         async function handleAICommand() {
             const q = document.getElementById('aiCommandInput').value.trim(); if(!q) return;
-            const cr = /^(-?\d+(\.\d+)?)[,\s]+(-?\d+(\.\d+)?)$/; const m = q.match(cr);
-            if (m) { map.setView([parseFloat(m[1]), parseFloat(m[3])], 15); L.popup().setLatLng([parseFloat(m[1]), parseFloat(m[3])]).setContent(`<b>📍 Koordinat</b><br>${m[1]}, ${m[3]}`).openOn(map); return; }
-            const p = `User: "${q}". JSON ONLY: { "action": "NAVIGATE"|"FILTER"|"RESET", "lat": num, "lng": num, "zoom": 13, "label": "name", "expr": "JS bool (d.date,d.time,d.lat)" }`;
-            try { const t = await callAI(p); const a = JSON.parse(t.replace(/```json|```/g,'').trim());
-                if(a.action==='NAVIGATE') { map.setView([a.lat,a.lng], 13); L.popup().setLatLng([a.lat,a.lng]).setContent(`📍 ${a.label}`).openOn(map); }
-                else if(a.action==='FILTER') { const f = rawData.filter(new Function('d', `try{return ${a.expr}}catch{return false}`)); if(f.length) { displayData=f; updateUI(); } else alert("0 Data."); }
-                else if(a.action==='RESET') resetFilter();
+
+            // Check Lat,Lon Space/Comma
+            const coordRegex = /^(-?\d+(\.\d+)?)[,\s]+(-?\d+(\.\d+)?)$/;
+            const match = q.match(coordRegex);
+            if (match) {
+                const lat = parseFloat(match[1]), lng = parseFloat(match[3]);
+                map.setView([lat, lng], 15);
+                L.popup().setLatLng([lat, lng]).setContent(`<b>📍 Koordinat</b><br>${lat}, ${lng}`).openOn(map);
+                return;
+            }
+
+            const prompt = `User: "${q}". JSON ONLY: { "action": "NAVIGATE"|"FILTER"|"RESET", "lat": num, "lng": num, "zoom": 13, "label": "name", "expr": "JS bool (d.date,d.time,d.lat)" }`;
+            try {
+                const txt = await callAI(prompt);
+                if (!txt) return;
+                const act = JSON.parse(txt.replace(/```json|```/g,'').trim());
+                if(act.action==='NAVIGATE') { map.setView([act.lat,act.lng], 13); L.popup().setLatLng([act.lat,act.lng]).setContent(`📍 ${act.label}`).openOn(map); }
+                else if(act.action==='FILTER') { const f = rawData.filter(new Function('d', `try{return ${act.expr}}catch{return false}`)); if(f.length) { displayData=f; updateUI(); } else alert("0 Data."); }
+                else if(act.action==='RESET') resetFilter();
             } catch(e) { console.log(e); }
         }
         
@@ -577,7 +642,7 @@
             4. Berikan analisis singkat mengenai kapasitas dan potensi hambatan lalu lintas di kelas jalan tersebut.`;
             
             const txt = await callAI(prompt); 
-            showAIResult(txt); 
+            if (txt) showAIResult(txt); 
         }
         
         async function askAIArea() { 
@@ -591,11 +656,18 @@
             3. Evaluasi apakah karakteristik jalan ini sesuai dengan standar keselamatan UU No. 22/2009 untuk penggunaan saat ini.`;
             
             const txt = await callAI(prompt); 
-            showAIResult(txt); 
+            if (txt) showAIResult(txt); 
         }
         
-        function showAIResult(txt) { document.getElementById('aiOutput').innerHTML = marked.parse(txt); toggleModal('aiModal', true); }
+        function showAIResult(txt) {
+            if (!txt) return;
+            document.getElementById('aiOutput').innerHTML = marked.parse(txt);
+            toggleModal('aiModal', true);
+        }
         function closeAIModal() { toggleModal('aiModal', false); }
+        function setupClick(isHeatmap) {
+            map.off('click');
+        }
         function toggleMinMax(id, min) { const c = document.getElementById(id); if(min) { c.classList.remove('w-80'); c.classList.add('w-auto'); document.getElementById('mainFullContent').classList.add('hidden'); document.getElementById('mainMiniContent').classList.remove('hidden'); } else { c.classList.remove('w-auto'); c.classList.add('w-80'); document.getElementById('mainMiniContent').classList.add('hidden'); document.getElementById('mainFullContent').classList.remove('hidden'); } }
         function resetFilter() { displayData=[...rawData]; updateUI(); document.getElementById('aiCommandInput').value=''; }
         document.getElementById('radiusSlider').addEventListener('input', function() { if (!isUpdatingMap) { requestAnimationFrame(() => { const val = parseInt(this.value); renderLayer(); isUpdatingMap = false; }); isUpdatingMap = true; } });
