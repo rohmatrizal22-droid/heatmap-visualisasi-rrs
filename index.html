@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Geo-Analisis (Satellite Mode)</title>
+    <title>Dashboard Geo-Analisis (Smart Data Info)</title>
     
     <style>
         /* Dark Theme Base for Satellite Look */
@@ -54,14 +54,14 @@
 
     <!-- Overlays -->
     <div id="aiProcessing" class="fixed top-4 right-4 bg-white z-[9999] hidden items-center gap-3 p-3 rounded-lg shadow-lg border border-blue-100 animate-bounce-in">
-        <div class="loader"></div> <span class="text-xs text-gray-700 font-bold">Menganalisis Kelas Jalan...</span>
+        <div class="loader"></div> <span class="text-xs text-gray-700 font-bold">Menganalisis...</span>
     </div>
 
     <!-- SETTINGS MODAL -->
     <div id="settingsModal" class="fixed inset-0 bg-black/60 z-[9999] hidden flex items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity duration-300">
         <div class="bg-white w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col h-[600px]">
             <div class="p-4 border-b bg-gray-50 flex justify-between items-center shrink-0">
-                <h3 class="font-bold text-gray-800 text-lg"><i class="fa-solid fa-sliders text-blue-600 mr-2"></i> Pengaturan Tampilan & Data</h3>
+                <h3 class="font-bold text-gray-800 text-lg"><i class="fa-solid fa-sliders text-blue-600 mr-2"></i> Pengaturan</h3>
                 <button onclick="toggleModal('settingsModal', false)" class="text-gray-400 hover:text-gray-700"><i class="fa-solid fa-times text-xl"></i></button>
             </div>
             <div class="flex flex-1 overflow-hidden">
@@ -77,12 +77,10 @@
                 <div class="w-2/3 p-6 overflow-y-auto custom-scrollbar bg-white relative">
                     <div id="styleContentWrapper">
                         <h4 class="text-lg font-bold text-gray-800 mb-1" id="styleTitle">Pengaturan Titik</h4>
-                        <p class="text-xs text-gray-500 mb-6">Geser slider untuk melihat perubahan secara langsung.</p>
                         <div id="styleControls" class="space-y-6"></div>
                     </div>
                     <div id="apiContentWrapper" class="hidden">
                         <h4 class="text-lg font-bold text-gray-800 mb-1">Konfigurasi API</h4>
-                        <p class="text-xs text-gray-500 mb-6">Koneksikan dashboard dengan Google Gemini AI.</p>
                         <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
                             <label class="text-sm font-bold text-blue-800 block mb-2">Gemini API Key</label>
                             <div class="relative">
@@ -92,7 +90,6 @@
                             <div class="flex justify-end mt-3">
                                 <button onclick="saveApiKey()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition-colors"><i class="fa-solid fa-save mr-1"></i> Simpan Key</button>
                             </div>
-                            <p class="text-xs text-blue-600 mt-3 flex items-center gap-1"><i class="fa-solid fa-shield-halved"></i> Key disimpan lokal di browser.</p>
                         </div>
                     </div>
                 </div>
@@ -116,7 +113,7 @@
                     <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleFileSelect(this)">
                     <i class="fa-solid fa-cloud-arrow-up text-4xl text-blue-400 mb-3"></i>
                     <p class="text-sm text-gray-600 font-medium">Tarik File Excel ke sini</p>
-                    <p class="text-xs text-gray-400 mt-1">Support: .xlsx, .csv (Bisa format "Lat Lon", "Lat,Lon", atau kolom terpisah)</p>
+                    <p class="text-xs text-gray-400 mt-1">Support: .xlsx, .csv (Header Bebas asal ada Lat/Lon)</p>
                 </div>
                 <div id="fileInfo" class="hidden w-full bg-green-50 border border-green-200 rounded-lg p-3 flex justify-between items-center">
                     <span class="text-xs text-green-800 font-medium"><i class="fa-solid fa-check-circle mr-1"></i> <span id="fileName">file.xlsx</span></span>
@@ -150,7 +147,7 @@
     <div id="aiModal" class="fixed inset-0 bg-black/50 z-[9999] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
         <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
             <div class="p-4 border-b bg-gradient-to-r from-indigo-600 to-purple-600 rounded-t-2xl flex justify-between items-center">
-                <h3 class="text-white font-bold"><i class="fa-solid fa-robot mr-2"></i> Analisis UU No. 22/2009</h3>
+                <h3 class="text-white font-bold"><i class="fa-solid fa-robot mr-2"></i> Analisis AI</h3>
                 <button onclick="closeAIModal()" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             <div id="aiOutput" class="p-6 overflow-y-auto prose text-sm text-gray-700 flex-1 custom-scrollbar"></div>
@@ -234,6 +231,7 @@
 
     <!-- SCRIPTS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Removed Leaflet Heat JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -384,16 +382,8 @@
                 else { lat = parseFloat(row[latKey]); lng = parseFloat(row[lonKey]); }
 
                 if(!isNaN(lat) && !isNaN(lng)) {
-                    let d = null, t = null, s = null;
-                    keys.forEach(k => {
-                        const l = k.toLowerCase();
-                        if(l.includes('date') || l.includes('tgl')) d = row[k];
-                        if(l.includes('time') || l.includes('jam')) t = row[k];
-                        if(l.includes('speed') || l.includes('kecepatan')) s = parseFloat(row[k]);
-                    });
-                    if(typeof d === 'number') d = new Date(Math.round((d - 25569)*86400*1000)).toISOString().split('T')[0]; else if(!d) d = new Date().toISOString().split('T')[0];
-                    if(typeof t === 'number') { let sec = Math.round(t * 86400); t = `${String(Math.floor(sec/3600)).padStart(2,'0')}:${String(Math.floor((sec%3600)/60)).padStart(2,'0')}`; } else if(!t) t = "00:00";
-                    newData.push({ lat: lat, lng: lng, date: d, time: t, speed: s, props: row });
+                    // All props are stored
+                    newData.push({ lat: lat, lng: lng, props: row });
                 }
             });
 
@@ -409,8 +399,9 @@
                 let h = Math.floor(i/2); let m = (i%2)*30;
                 let time = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
                 let date = '2023-11-22';
+                // Create Dummy Props
                 let row = { 'Latitude': clat, 'Longitude': clng, 'Tanggal': date, 'Jam': time, 'Kecepatan': spd, 'Driver': 'Budi', 'Status': 'Aktif' };
-                rawData.push({ lat: clat+(Math.random()-0.5)*0.05, lng: clng+(Math.random()-0.5)*0.05, date: date, time: time, speed: spd, props: row });
+                rawData.push({ lat: clat+(Math.random()-0.5)*0.05, lng: clng+(Math.random()-0.5)*0.05, props: row });
             }
             displayData=[...rawData]; map.fitBounds(L.latLngBounds(rawData.map(d=>[d.lat,d.lng]))); updateUI(); toggleModal('dataEntryModal', false);
         }
@@ -456,15 +447,13 @@
             const radiusVal = parseInt(document.getElementById('radiusSlider').value);
 
             if(mode === 'line') {
-                const sortedData = [...displayData].sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`));
+                // Assuming sequential order from input as we have arbitrary props
                 activeLayer = L.featureGroup();
-                const latlngs = sortedData.map(d => [d.lat, d.lng]);
+                const latlngs = displayData.map(d => [d.lat, d.lng]);
                 L.polyline(latlngs, { color: cf.color, weight: cf.weight, opacity: cf.opacity }).addTo(activeLayer);
                 activeLayer.addTo(map);
-                setupClick(false);
             } else {
                 activeLayer = L.featureGroup();
-                setupClick(false);
                 const limit = Math.min(displayData.length, 2000);
                 for(let i=0; i<limit; i++) {
                     const d = displayData[i];
@@ -478,16 +467,74 @@
             }
         }
 
-        function setupClick(isHeatmap) {
-            map.off('click');
+        // HELPER: Format Time & Duration
+        function formatExcelSerialDate(serial) {
+            if (!serial) return "";
+            // Excel base date is 1900-01-01, JS is 1970-01-01. Diff is 25569 days.
+            const date = new Date(Math.round((serial - 25569) * 86400 * 1000));
+            // Return DD/MM/YYYY
+            const d = String(date.getDate()).padStart(2, '0');
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const y = date.getFullYear();
+            return `${d}/${m}/${y}`;
+        }
+
+        function formatExcelSerialTime(serial) {
+            if (serial === undefined || serial === null) return "";
+            // Take fraction part if mixed date/time, or assumes pure time fraction < 1
+            let frac = serial % 1; 
+            let totalSeconds = Math.round(frac * 86400);
+            const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+            const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+            const s = String(totalSeconds % 60).padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        function formatDuration(secondsInput) {
+            if (!secondsInput) return "";
+            // Formula: val / 86400 gives Days (Excel Serial). 
+            // If input is 3600 (1 hour), val/86400 = 0.041666
+            // We want to display HH:MM:SS. 
+            // So we essentially take the fraction (which represents time) and format it.
+            
+            let val = parseFloat(secondsInput);
+            // The prompt asked to use formula "val / 86400"
+            // Let's calculate the Excel serial fraction
+            let excelSerial = val / 86400;
+            
+            // Now convert that fraction back to readable time string
+            return formatExcelSerialTime(excelSerial);
         }
 
         function createPopup(d) {
             let content = `<div class='font-sans text-left min-w-[150px]'>`;
             content += `<div class="bg-blue-50 p-2 -mx-3 -mt-3 mb-2 border-b border-blue-100 rounded-t text-center"><b class="text-blue-800">Info Data</b></div>`;
+            
             for (const [key, value] of Object.entries(d.props)) {
                 let displayVal = value;
-                if(typeof value === 'number' && value % 1 !== 0) displayVal = value.toFixed(5);
+                let kLower = key.toLowerCase();
+
+                // 1. Format Dates
+                if ((kLower.includes('start') || kLower.includes('end')) && kLower.includes('date')) {
+                    if (typeof value === 'number') displayVal = formatExcelSerialDate(value);
+                    // If string ISO 'YYYY-MM-DD', maybe reformat? Leaving as is if string.
+                }
+
+                // 2. Format Times
+                if ((kLower.includes('start') || kLower.includes('end')) && kLower.includes('time')) {
+                    if (typeof value === 'number') displayVal = formatExcelSerialTime(value);
+                }
+
+                // 3. Format Duration (Formula / 86400)
+                if (kLower.includes('duration')) {
+                    // Assume value is the input number to be divided
+                    displayVal = formatDuration(value);
+                }
+
+                if(typeof value === 'number' && value % 1 !== 0 && !kLower.includes('date') && !kLower.includes('time') && !kLower.includes('duration')) {
+                     displayVal = value.toFixed(5);
+                }
+
                 content += `<div class="flex justify-between text-xs mb-1"><span class="text-gray-500 font-medium mr-2">${key}:</span> <span class="text-gray-800">${displayVal}</span></div>`;
             }
             content += `<div class="mt-2 pt-2 border-t border-gray-100 text-center"><a href="https://www.google.com/maps?q=&layer=c&cbll=${d.lat},${d.lng}" target="_blank" class="text-blue-600 underline text-xs font-bold">Lihat Street View</a></div>`;
