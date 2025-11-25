@@ -125,8 +125,17 @@
                     </div>
                 </div>
 
+                <!-- ADDED: Speed Input -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-slate-500 uppercase">Kecepatan Rata-rata (Opsional)</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-gauge-high absolute left-3 top-3 text-orange-500"></i>
+                        <input type="number" id="routeSpeed" class="w-full pl-9 p-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Km/Jam (Misal: 40)">
+                    </div>
+                </div>
+
                 <button onclick="calculateRoute()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded-lg shadow-md transition-all flex justify-center items-center gap-2">
-                    <i class="fa-solid fa-calculator"></i> Hitung Jarak Kendaraan
+                    <i class="fa-solid fa-calculator"></i> Hitung Jarak & Waktu
                 </button>
 
                 <!-- Result Display -->
@@ -422,6 +431,8 @@
         async function calculateRoute() {
             const startIn = document.getElementById('routeStart').value;
             const endIn = document.getElementById('routeEnd').value;
+            const speedVal = parseFloat(document.getElementById('routeSpeed').value); // Get speed
+
             if(!startIn || !endIn) return showToast("Isi kedua titik lokasi!", 'error');
 
             showToast("Mencari rute...", 'info');
@@ -441,7 +452,15 @@
 
                 const route = data.routes[0];
                 const distKm = (route.distance / 1000).toFixed(2);
-                const durMin = Math.round(route.duration / 60);
+                
+                // Logic for custom speed vs default duration
+                let durMin;
+                if (!isNaN(speedVal) && speedVal > 0) {
+                   // t = s / v.  (km) / (km/h) = hours. * 60 = minutes.
+                   durMin = Math.round(((route.distance / 1000) / speedVal) * 60);
+                } else {
+                   durMin = Math.round(route.duration / 60);
+                }
                 
                 // Update UI
                 document.getElementById('resDist').innerText = `${distKm} km`;
