@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geo-Dashboard Pro (Stable)</title>
+    <title>Geo-Dashboard Pro (Right Floating Menu)</title>
     
     <style>
         /* 1. THEME: Modern Slate (Dark Mode Optimized - Lightweight) */
@@ -58,6 +58,10 @@
         .leaflet-popup-content-wrapper { background: #1e293b; color: white; border: 1px solid #475569; border-radius: 4px; }
         .leaflet-popup-tip { background: #1e293b; }
         .leaflet-draw-toolbar a { background-color: #1e293b; color: white; border-color: #334155; }
+        
+        /* Hide/Show Animation Classes */
+        .panel-hidden { transform: translateX(-120%); opacity: 0; pointer-events: none; }
+        .panel-visible { transform: translateX(0); opacity: 1; pointer-events: auto; }
     </style>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -67,13 +71,18 @@
 </head>
 <body>
 
-    <!-- PROCESSING INDICATOR -->
-    <div id="aiProcessing" class="fixed top-4 right-4 z-[9999] hidden items-center gap-3 p-2 px-4 rounded-full bg-blue-900/90 border border-blue-700 shadow-lg animate-pulse">
+    <!-- FLOATING MENU BUTTON (Moved to Right-Top) -->
+    <button id="openMenuBtn" onclick="togglePanel(true)" class="absolute top-4 right-4 z-[999] btn-action btn-primary shadow-lg hidden transition-all duration-300 hover:scale-105">
+        <i class="fa-solid fa-bars text-lg"></i> <span class="ml-2">Menu</span>
+    </button>
+
+    <!-- PROCESSING INDICATOR (Moved Down to avoid overlap) -->
+    <div id="aiProcessing" class="fixed top-16 right-4 z-[9999] hidden items-center gap-3 p-2 px-4 rounded-full bg-blue-900/90 border border-blue-700 shadow-lg animate-pulse">
         <div class="loader"></div> <span class="text-xs font-bold text-blue-100">Memproses...</span>
     </div>
 
     <!-- LEFT SIDEBAR CONTROL -->
-    <div id="controlPanel" class="absolute top-4 left-4 z-[1000] w-80 flex flex-col gap-3 transition-transform duration-300">
+    <div id="controlPanel" class="absolute top-4 left-4 z-[1000] w-80 flex flex-col gap-3 panel-visible">
         
         <!-- HEADER & TABS -->
         <div class="ui-panel p-0 overflow-hidden">
@@ -81,7 +90,10 @@
                 <div class="flex items-center gap-2 font-bold text-sm text-blue-400">
                     <i class="fa-solid fa-earth-americas"></i> Geo-Dashboard
                 </div>
-                <button onclick="togglePanel()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-bars"></i></button>
+                <!-- Close Button -->
+                <button onclick="togglePanel(false)" class="text-slate-400 hover:text-red-400 transition-colors" title="Sembunyikan Menu">
+                    <i class="fa-solid fa-chevron-left text-lg"></i>
+                </button>
             </div>
             
             <!-- Tab Navigation -->
@@ -126,9 +138,8 @@
                     </div>
                 </div>
 
-                <!-- 2. TOOLS TAB (NEW) -->
+                <!-- 2. TOOLS TAB -->
                 <div id="view-tools" class="space-y-4 hidden">
-                    
                     <!-- Distance A to B -->
                     <div class="bg-slate-800/50 p-3 rounded border border-slate-700">
                         <label class="text-[10px] font-bold text-green-400 uppercase mb-2 block"><i class="fa-solid fa-route mr-1"></i> Jarak A ke B</label>
@@ -149,9 +160,8 @@
                         <p class="text-[10px] text-slate-500 mt-2 italic text-center">Klik tombol, lalu klik peta untuk menandai lokasi.</p>
                     </div>
 
-                    <!-- Draw Tools Info -->
                     <div class="text-[10px] text-slate-400 text-center mt-2 p-2 bg-slate-800 rounded">
-                        <i class="fa-solid fa-draw-polygon mr-1"></i> Gunakan toolbar di kiri peta untuk ukur <b>Area (Kotak/Poligon)</b>.
+                        <i class="fa-solid fa-draw-polygon mr-1"></i> Gunakan toolbar di kiri peta untuk ukur Area.
                     </div>
                 </div>
 
@@ -169,9 +179,7 @@
                     </div>
 
                     <div class="data-table-container h-48">
-                        <table class="data-table" id="dataTable">
-                            <!-- Data Rows -->
-                        </table>
+                        <table class="data-table" id="dataTable"></table>
                     </div>
                     <p class="text-[10px] text-slate-500 italic text-center">Klik baris untuk zoom ke lokasi.</p>
                 </div>
@@ -179,9 +187,9 @@
             </div>
 
             <!-- Footer -->
-            <div class="p-2 bg-slate-800 border-t border-slate-700 flex justify-between items-center">
+            <div class="p-2 bg-slate-900 border-t border-slate-800 flex justify-between items-center">
                 <button onclick="openSettings()" class="text-slate-500 hover:text-white px-2 text-xs"><i class="fa-solid fa-key"></i> API Key</button>
-                <span class="text-[10px] text-slate-600">v2.1 Pro</span>
+                <span class="text-[10px] text-slate-600">v2.3 Layout</span>
             </div>
         </div>
     </div>
@@ -197,7 +205,7 @@
     <div id="apiModal" class="fixed inset-0 bg-black/80 z-[2000] hidden flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="ui-panel w-full max-w-sm p-5 bg-slate-900 border border-slate-700">
             <h3 class="font-bold text-blue-400 mb-3">Konfigurasi API</h3>
-            <label class="text-xs text-slate-400 block mb-1">Gemini API Key (Untuk Pencarian & Jarak A-B)</label>
+            <label class="text-xs text-slate-400 block mb-1">Gemini API Key</label>
             <input type="password" id="apiKeyInput" class="input-field mb-3" placeholder="Paste Key...">
             <div class="flex justify-end gap-2">
                 <button onclick="document.getElementById('apiModal').classList.add('hidden')" class="btn-action">Tutup</button>
@@ -219,7 +227,6 @@
         let map, drawnItems, activeLayer;
         let appData = [];
         let isPinMode = false;
-        let isUpdatingMap = false;
         const apiKeyKey = 'gemini_api_key';
 
         // --- INIT ---
@@ -227,59 +234,54 @@
             initMap();
             initDraw();
             
-            // Load saved key
             const k = localStorage.getItem(apiKeyKey);
-            if(k) {
-                const apiInput = document.getElementById('apiKeyInput');
-                if(apiInput) apiInput.value = k;
-            }
+            if(k) document.getElementById('apiKeyInput').value = k;
 
-            // Slider listener (moved here to fix null error)
-            const rSlider = document.getElementById('radiusSlider');
-            if(rSlider) {
-                rSlider.addEventListener('input', () => {
-                    requestAnimationFrame(renderData);
-                });
-            }
+            document.getElementById('radiusSlider').addEventListener('input', () => {
+                requestAnimationFrame(renderData);
+            });
         });
 
         function initMap() {
             map = L.map('map', { center: [-6.200, 106.816], zoom: 12, zoomControl: false });
             L.control.zoom({ position: 'bottomright' }).addTo(map);
-            
-            // Default Satellite
             setMapLayer('google_sat');
             
-            // Map Click Logic
             map.on('click', (e) => {
                 if(isPinMode) {
                     addPin(e.latlng);
                 } else {
-                    // Don't show popup if clicking a drawn shape (Leaflet Draw handles it)
-                     // For simple empty click:
-                     /*
-                    L.popup()
-                        .setLatLng(e.latlng)
-                        .setContent(`<div style="text-align:center; color: #333;">
-                            <b>Koordinat</b><br>${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}
-                        </div>`)
-                        .openOn(map);
-                    */
+                    // No popup on empty click to keep it clean unless needed
                 }
             });
         }
 
         function setMapLayer(type) {
-            map.eachLayer((l) => { if(l._url) map.removeLayer(l); }); // Remove existing tiles
-            
-            let url = '';
-            if(type === 'google_road') url = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
-            else if(type === 'google_sat') url = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'; // Hybrid
-            
+            map.eachLayer((l) => { if(l._url) map.removeLayer(l); });
+            let url = type === 'google_road' ? 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}' : 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
             L.tileLayer(url, { maxZoom: 20, attribution: 'Google Maps' }).addTo(map);
         }
 
-        // --- TABS & UI ---
+        // --- UI TOGGLE LOGIC ---
+        function togglePanel(show) {
+            const p = document.getElementById('controlPanel');
+            const btn = document.getElementById('openMenuBtn');
+            
+            if (show) {
+                p.classList.remove('panel-hidden');
+                p.classList.add('panel-visible');
+                p.style.transform = 'translateX(0)';
+                p.style.opacity = '1';
+                btn.classList.add('hidden');
+            } else {
+                p.classList.remove('panel-visible');
+                p.classList.add('panel-hidden');
+                p.style.transform = 'translateX(-120%)';
+                p.style.opacity = '0';
+                btn.classList.remove('hidden');
+            }
+        }
+
         function setTab(tab) {
             ['visual', 'tools', 'data'].forEach(t => {
                 document.getElementById(`view-${t}`).classList.add('hidden');
@@ -287,11 +289,6 @@
             });
             document.getElementById(`view-${tab}`).classList.remove('hidden');
             document.getElementById(`tab-${tab}`).classList.add('active');
-        }
-        
-        function togglePanel() {
-            const p = document.getElementById('controlPanel');
-            p.style.transform = p.style.transform === 'translateX(-110%)' ? 'translateX(0)' : 'translateX(-110%)';
         }
 
         function openSettings() { document.getElementById('apiModal').classList.remove('hidden'); }
@@ -375,7 +372,6 @@
             } else {
                 activeLayer = L.featureGroup();
                 const limit = Math.min(appData.length, 2000);
-                
                 for(let i=0; i<limit; i++) {
                     const d = appData[i];
                     const m = mode === 'point' 
@@ -419,15 +415,13 @@
                         method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ contents: [{parts:[{text: prompt}]}] })
                     });
                     const data = await res.json();
-                    const txt = data.candidates[0].content.parts[0].text.replace(/```json|```/g,'').trim();
-                    const coords = JSON.parse(txt);
-                    
+                    const coords = JSON.parse(data.candidates[0].content.parts[0].text.replace(/```json|```/g,'').trim());
                     if(coords.a && coords.b) {
                         latlngA = L.latLng(coords.a);
                         latlngB = L.latLng(coords.b);
                         drawDistanceLine(latlngA, latlngB);
                     }
-                } catch(e) { alert("Gagal mencari lokasi. Coba koordinat manual."); } 
+                } catch(e) { alert("Gagal mencari lokasi."); } 
                 finally { document.getElementById('aiProcessing').style.display = 'none'; }
             }
         }
@@ -435,52 +429,37 @@
         function drawDistanceLine(latlngA, latlngB) {
             if(window.distLine) map.removeLayer(window.distLine);
             if(window.distMarkers) window.distMarkers.forEach(m => map.removeLayer(m));
-            
-            window.distMarkers = [
-                L.marker(latlngA).addTo(map).bindPopup("Titik A"),
-                L.marker(latlngB).addTo(map).bindPopup("Titik B")
-            ];
-            
+            window.distMarkers = [ L.marker(latlngA).addTo(map), L.marker(latlngB).addTo(map) ];
             window.distLine = L.polyline([latlngA, latlngB], { color: '#ec4899', dashArray: '10, 10', weight: 4 }).addTo(map);
-            
             map.fitBounds([latlngA, latlngB], { padding: [50,50] });
-            
             const dist = latlngA.distanceTo(latlngB) / 1000;
             const resDiv = document.getElementById('distResult');
             resDiv.classList.remove('hidden');
             resDiv.innerHTML = `Jarak: <b>${dist.toFixed(2)} KM</b>`;
         }
 
-        // --- TOOLS: POI ---
         function toggleAddPinMode() {
             isPinMode = !isPinMode;
             const btn = document.getElementById('btnAddPin');
             if(isPinMode) {
-                btn.classList.add('btn-primary');
-                btn.innerHTML = '<i class="fa-solid fa-check"></i> Selesai';
-                map.getContainer().style.cursor = 'crosshair';
+                btn.classList.add('btn-primary'); btn.innerHTML = '<i class="fa-solid fa-check"></i> Selesai'; map.getContainer().style.cursor = 'crosshair';
             } else {
-                btn.classList.remove('btn-primary');
-                btn.innerHTML = '<i class="fa-solid fa-plus"></i> Tambah Pin';
-                map.getContainer().style.cursor = '';
+                btn.classList.remove('btn-primary'); btn.innerHTML = '<i class="fa-solid fa-map-pin"></i> Tambah Pin'; map.getContainer().style.cursor = '';
             }
         }
 
         function addPin(latlng) {
             const label = prompt("Nama Lokasi:", "Lokasi Baru");
             if(label) {
-                L.marker(latlng).addTo(map)
-                    .bindPopup(`<div style="color:#333"><b>${label}</b><br>${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}</div>`)
-                    .openPopup();
+                L.marker(latlng).addTo(map).bindPopup(`<div style="color:#333"><b>${label}</b><br>${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}</div>`).openPopup();
             }
         }
 
-        // --- DRAW & MEASURE ---
         function initDraw() {
             drawnItems = new L.FeatureGroup().addTo(map);
             const drawControl = new L.Control.Draw({
                 draw: {
-                    polyline: { metric: true, shapeOptions: { color: '#f59e0b' } }, 
+                    polyline: { metric: true, shapeOptions: { color: '#f59e0b' } },
                     polygon: { showArea: true, shapeOptions: { color: '#10b981' } },
                     rectangle: { showArea: true, shapeOptions: { color: '#3b82f6' } },
                     circle: false, marker: false, circlemarker: false
@@ -488,59 +467,39 @@
                 edit: { featureGroup: drawnItems }
             });
             map.addControl(drawControl);
-
             map.on(L.Draw.Event.CREATED, (e) => {
-                const layer = e.layer;
-                drawnItems.addLayer(layer);
-                
+                const layer = e.layer; drawnItems.addLayer(layer);
                 let val = 0;
                 if(e.layerType === 'polyline') {
-                    const lls = layer.getLatLngs();
-                    for(let i=0; i<lls.length-1; i++) val += lls[i].distanceTo(lls[i+1]);
+                    const lls = layer.getLatLngs(); for(let i=0; i<lls.length-1; i++) val += lls[i].distanceTo(lls[i+1]);
                 } else {
-                    const lls = layer.getLatLngs()[0];
-                    for(let i=0; i<lls.length-1; i++) val += lls[i].distanceTo(lls[i+1]);
-                    val += lls[lls.length-1].distanceTo(lls[0]);
+                    const lls = layer.getLatLngs()[0]; for(let i=0; i<lls.length-1; i++) val += lls[i].distanceTo(lls[i+1]); val += lls[lls.length-1].distanceTo(lls[0]);
                 }
-                
-                const ui = document.getElementById('measureFloat');
-                ui.classList.remove('hidden');
-                ui.classList.add('flex');
+                document.getElementById('measureFloat').classList.remove('hidden');
+                document.getElementById('measureFloat').classList.add('flex');
                 document.getElementById('measureVal').innerText = (val/1000).toFixed(2) + " KM";
             });
         }
         
-        function clearMeasurements() {
-            drawnItems.clearLayers();
-            if(window.distLine) map.removeLayer(window.distLine);
-            if(window.distMarkers) window.distMarkers.forEach(m => map.removeLayer(m));
-            document.getElementById('measureFloat').classList.add('hidden');
-            document.getElementById('measureFloat').classList.remove('flex');
-            document.getElementById('distResult').classList.add('hidden');
-        }
+        function clearMeasurements() { drawnItems.clearLayers(); if(window.distLine) map.removeLayer(window.distLine); if(window.distMarkers) window.distMarkers.forEach(m => map.removeLayer(m)); document.getElementById('measureFloat').classList.add('hidden'); document.getElementById('distResult').classList.add('hidden'); }
 
-        // --- AI SEARCH ---
         async function handleSearch() {
             const q = document.getElementById('aiSearch').value;
             if(!q) return;
-            if(q.match(/^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/)) {
-                const p = q.split(',').map(Number);
-                map.setView(p, 16);
-                return;
-            }
-            const key = getApiKey();
+            if(q.match(/^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/)) { const p = q.split(',').map(Number); map.setView(p, 16); return; }
+            const key = localStorage.getItem(apiKeyKey);
             if(!key) return alert("API Key diperlukan.");
             document.getElementById('aiProcessing').style.display = 'flex';
             try {
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`, {
-                    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ contents: [{parts:[{text: `Return JSON coords [lat, lon] for: ${q}`}]}] })
+                    method: 'POST', headers: {'Content-Type':'application/json'}, 
+                    body: JSON.stringify({ contents: [{parts:[{text: `Return JSON coords [lat, lon] for: ${q}`}]}] })
                 });
                 const d = await res.json();
                 const coords = JSON.parse(d.candidates[0].content.parts[0].text.replace(/```json|```/g,'').trim());
                 map.setView(coords, 14);
             } catch(e) {} finally { document.getElementById('aiProcessing').style.display = 'none'; }
         }
-        function getApiKey() { return localStorage.getItem(apiKeyKey); }
     </script>
 </body>
 </html>
