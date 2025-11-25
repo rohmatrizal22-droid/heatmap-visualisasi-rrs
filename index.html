@@ -3,58 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Geo-Analisis (High Performance 100k+)</title>
+    <title>Geo-Dashboard Pro (Big Data Ready)</title>
     
     <style>
-        /* 1. BASE THEME */
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; background-color: #0f172a; }
+        /* 1. THEME: Modern Slate (Dark Mode Optimized - Lightweight) */
+        :root { --bg-dark: #0f172a; --panel-bg: #1e293b; --accent: #3b82f6; --text-main: #e2e8f0; --border: #334155; }
+        body { margin: 0; font-family: 'Inter', system-ui, sans-serif; overflow: hidden; background-color: var(--bg-dark); color: var(--text-main); }
         #map { height: 100vh; width: 100%; z-index: 1; cursor: crosshair; }
         
-        /* 2. GLASS PANEL */
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.96);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            box-shadow: 0 8px 32px rgba(15, 23, 42, 0.5);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        /* 2. LIGHTWEIGHT PANEL */
+        .ui-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+            border-radius: 0.5rem;
+            transition: transform 0.2s ease, opacity 0.2s ease;
         }
 
         /* 3. COMPONENTS */
-        .loader { border: 3px solid #dbeafe; border-top: 3px solid #2563eb; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        .loader { border: 2px solid #334155; border-top: 2px solid var(--accent); border-radius: 50%; width: 16px; height: 16px; animation: spin 0.8s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        .draggable-header { cursor: grab; color: #1e3a8a; } 
-        .draggable-header:active { cursor: grabbing; }
+        .btn-action {
+            background: #334155; color: #f1f5f9; border: 1px solid #475569;
+            padding: 0.5rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 600;
+            cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+        }
+        .btn-action:hover { background: #475569; border-color: #64748b; }
+        .btn-primary { background: var(--accent); border-color: #2563eb; color: white; }
+        .btn-primary:hover { background: #2563eb; }
         
-        .map-btn { transition: all 0.2s; font-weight: 600; border: 1px solid #bfdbfe; background-color: #eff6ff; color: #1d4ed8; }
-        .map-btn:hover { background-color: #dbeafe; border-color: #3b82f6; }
-        .map-btn-active { background-color: #2563eb !important; border-color: #1e40af !important; color: #ffffff !important; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.4); }
-        
-        .ai-input { border: 1px solid #cbd5e1; color: #334155; }
-        .ai-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2); }
-        
-        .data-table-container { max-height: 300px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
-        .data-table { width: 100%; text-align: left; border-collapse: collapse; font-size: 0.75rem; }
-        .data-table th { position: sticky; top: 0; background: #f1f5f9; padding: 10px 8px; border-bottom: 2px solid #cbd5e1; color: #334155; font-weight: 700; }
-        .data-table td { padding: 8px; border-bottom: 1px solid #f1f5f9; color: #475569; }
-        .data-table tr:hover { background-color: #e0f2fe; cursor: pointer; }
-        
-        .file-drop-zone { border: 2px dashed #93c5fd; transition: all 0.3s; background: #f0f9ff; border-radius: 12px; }
-        .file-drop-zone:hover { border-color: #2563eb; background-color: #dbeafe; }
+        .input-field {
+            background: #0f172a; border: 1px solid var(--border); color: white;
+            padding: 0.5rem; border-radius: 0.375rem; font-size: 0.75rem; width: 100%;
+            outline: none; transition: border-color 0.15s;
+        }
+        .input-field:focus { border-color: var(--accent); }
 
-        input[type="color"] { -webkit-appearance: none; border: none; width: 40px; height: 40px; border-radius: 8px; cursor: pointer; }
-        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
-        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 8px; border: 1px solid #cbd5e1; }
-        
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
-        
-        .setting-tab-active { background-color: #eff6ff; color: #1d4ed8; border-right: 4px solid #2563eb; }
+        /* Table */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+        .data-table th { text-align: left; padding: 8px; background: #1e293b; color: #94a3b8; position: sticky; top: 0; border-bottom: 1px solid var(--border); }
+        .data-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); color: #cbd5e1; }
+        .data-table tr:hover { background: #334155; cursor: pointer; }
 
-        /* Progress Bar */
-        .progress-container { width: 100%; background-color: #e2e8f0; border-radius: 999px; height: 6px; margin-top: 10px; overflow: hidden; }
-        .progress-bar { height: 100%; background-color: #2563eb; width: 0%; transition: width 0.3s ease; }
+        /* Tabs */
+        .tab-btn { padding: 0.6rem; font-size: 0.75rem; color: #94a3b8; cursor: pointer; border-bottom: 2px solid transparent; background: transparent; border:none; width: 100%; }
+        .tab-btn:hover { background: rgba(255,255,255,0.05); color: white; }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: bold; background: rgba(59, 130, 246, 0.1); }
+        
+        /* Leaflet Overrides */
+        .leaflet-bar a { background-color: #1e293b !important; color: white !important; border-bottom: 1px solid #334155 !important; }
+        .leaflet-bar a:hover { background-color: #334155 !important; }
+        .leaflet-popup-content-wrapper { background: #1e293b; color: white; border: 1px solid #475569; border-radius: 4px; }
+        .leaflet-popup-tip { background: #1e293b; }
+        .leaflet-draw-toolbar a { background-color: #1e293b; color: white; border-color: #334155; }
+
+        /* Progress Bar for Big Data */
+        #progressWrapper { display: none; width: 100%; background: #334155; height: 4px; border-radius: 2px; margin-top: 5px; }
+        #progressBar { height: 100%; background: #3b82f6; width: 0%; transition: width 0.2s; }
     </style>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -62,207 +68,139 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-gray-900">
+<body>
 
-    <!-- AI Processing Overlay -->
-    <div id="aiProcessing" class="fixed top-4 right-4 bg-white z-[9999] hidden items-center gap-3 p-3 rounded-lg shadow-lg border border-blue-200 animate-bounce-in">
-        <div class="loader"></div> <span class="text-xs text-blue-900 font-bold" id="aiStatusText">AI Sedang Menganalisis...</span>
+    <!-- FLOATING MENU BUTTON -->
+    <button id="openMenuBtn" onclick="togglePanel(true)" class="absolute top-4 right-4 z-[999] btn-action btn-primary shadow-lg hidden transition-all duration-300 hover:scale-105">
+        <i class="fa-solid fa-bars text-lg"></i> <span class="ml-2">Menu</span>
+    </button>
+
+    <!-- PROCESSING INDICATOR -->
+    <div id="aiProcessing" class="fixed top-16 right-4 z-[9999] hidden items-center gap-3 p-2 px-4 rounded-full bg-blue-900/90 border border-blue-700 shadow-lg animate-pulse">
+        <div class="loader"></div> <span class="text-xs font-bold text-blue-100">Memproses...</span>
     </div>
 
-    <!-- DATA LOADER OVERLAY (New for Large Data) -->
-    <div id="dataLoader" class="fixed inset-0 bg-black/70 z-[10000] hidden flex-col items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm text-center">
-            <div class="loader mx-auto mb-3"></div>
-            <h3 class="text-gray-800 font-bold text-lg mb-1">Memproses Data Besar</h3>
-            <p class="text-xs text-gray-500 mb-3" id="loaderStatus">Membaca file...</p>
-            <div class="progress-container">
-                <div class="progress-bar" id="loaderProgress"></div>
-            </div>
-            <p class="text-[10px] text-gray-400 mt-2 italic">Mohon tunggu, jangan tutup halaman.</p>
-        </div>
-    </div>
-
-    <!-- SETTINGS MODAL -->
-    <div id="settingsModal" class="fixed inset-0 bg-black/60 z-[9999] hidden flex items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity duration-300">
-        <div class="bg-white w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col h-[600px]">
-            <div class="p-4 border-b border-blue-100 bg-blue-50 flex justify-between items-center shrink-0">
-                <h3 class="font-bold text-blue-900 text-lg"><i class="fa-solid fa-sliders text-blue-600 mr-2"></i> Pengaturan</h3>
-                <button onclick="toggleModal('settingsModal', false)" class="text-gray-400 hover:text-red-500 transition-colors"><i class="fa-solid fa-times text-xl"></i></button>
-            </div>
-            <div class="flex flex-1 overflow-hidden">
-                <!-- Sidebar -->
-                <div class="w-1/3 bg-slate-50 border-r border-slate-200 p-3 flex flex-col gap-2 overflow-y-auto custom-scrollbar">
-                    <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 px-2">Visual</div>
-                    <button onclick="switchStyleTab('heatmap')" class="style-tab setting-tab-active w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-heatmap"><i class="fa-solid fa-fire text-red-500"></i> Heatmap</button>
-                    <button onclick="switchStyleTab('point')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-point"><i class="fa-solid fa-circle-dot text-orange-500"></i> Titik</button>
-                    <button onclick="switchStyleTab('circle')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-circle"><i class="fa-regular fa-circle text-blue-500"></i> Lingkaran</button>
-                    <button onclick="switchStyleTab('line')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-line"><i class="fa-solid fa-route text-green-500"></i> Garis</button>
-                    <div class="my-2 border-t border-slate-200"></div>
-                    <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 px-2">Sistem</div>
-                    <button onclick="switchStyleTab('api')" class="style-tab w-full text-left px-4 py-3 rounded-lg hover:bg-white transition-all text-sm font-medium flex items-center gap-2" id="tab-api"><i class="fa-solid fa-key text-slate-600"></i> API Key</button>
+    <!-- LEFT SIDEBAR CONTROL -->
+    <div id="controlPanel" class="absolute top-4 left-4 z-[1000] w-80 flex flex-col gap-3 panel-visible">
+        
+        <div class="ui-panel p-0 overflow-hidden">
+            <div class="p-3 border-b border-slate-700 flex justify-between items-center bg-slate-800">
+                <div class="flex items-center gap-2 font-bold text-sm text-blue-400">
+                    <i class="fa-solid fa-earth-americas"></i> Geo-Dashboard
                 </div>
-                <!-- Content -->
-                <div class="w-2/3 p-6 overflow-y-auto custom-scrollbar bg-white relative">
-                    <div id="styleContentWrapper">
-                        <h4 class="text-lg font-bold text-blue-900 mb-1" id="styleTitle">Pengaturan Heatmap</h4>
-                        <div id="styleControls" class="space-y-6"></div>
+                <button onclick="togglePanel(false)" class="text-slate-400 hover:text-red-400 transition-colors" title="Sembunyikan Menu">
+                    <i class="fa-solid fa-chevron-left text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="flex border-b border-slate-700">
+                <button onclick="setTab('visual')" class="tab-btn active" id="tab-visual">Visual</button>
+                <button onclick="setTab('tools')" class="tab-btn" id="tab-tools">Alat Ukur</button>
+                <button onclick="setTab('data')" class="tab-btn" id="tab-data">Data</button>
+            </div>
+
+            <div class="p-4 max-h-[70vh] overflow-y-auto custom-scrollbar" id="panelContent">
+                
+                <!-- 1. VISUAL TAB -->
+                <div id="view-visual" class="space-y-4">
+                    <div class="relative">
+                        <input type="text" id="aiSearch" placeholder="Cari lokasi..." class="input-field pr-8" onkeypress="if(event.key==='Enter') handleSearch()">
+                        <button onclick="handleSearch()" class="absolute right-2 top-1.5 text-slate-400 hover:text-blue-400"><i class="fa-solid fa-search"></i></button>
                     </div>
-                    <div id="apiContentWrapper" class="hidden">
-                        <h4 class="text-lg font-bold text-blue-900 mb-1">Konfigurasi API</h4>
-                        <div class="bg-blue-50 p-5 rounded-xl border border-blue-100 mt-4">
-                            <label class="text-sm font-bold text-blue-800 block mb-2">Gemini API Key</label>
-                            <div class="relative">
-                                <input type="password" id="apiKeyInput" class="w-full p-3 pr-20 rounded-lg border border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="Tempel API Key di sini...">
-                                <button onclick="toggleApiKeyVisibility()" class="absolute right-2 top-3 text-slate-400 hover:text-blue-600"><i class="fa-solid fa-eye" id="eyeIcon"></i></button>
-                            </div>
-                            <div class="flex justify-end mt-3">
-                                <button onclick="saveApiKey()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition-colors"><i class="fa-solid fa-save mr-1"></i> Simpan</button>
-                            </div>
-                            <p class="text-xs text-blue-600 mt-3"><i class="fa-solid fa-info-circle mr-1"></i>Key tersimpan lokal di browser Anda.</p>
+
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Mode Peta</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="setMapLayer('google_road')" class="btn-action text-xs">Jalan</button>
+                            <button onclick="setMapLayer('google_sat')" class="btn-action text-xs bg-slate-700 border-blue-500 text-blue-400">Satelit</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Visualisasi Data</label>
+                        <select id="vizMode" onchange="renderData()" class="input-field mb-2">
+                            <option value="point">📍 Titik (Point)</option>
+                            <option value="heatmap">🔥 Heatmap</option>
+                            <option value="line">📈 Garis (Jalur)</option>
+                        </select>
+                        <div class="flex items-center justify-between text-xs text-slate-400">
+                            <span>Radius/Ukuran</span>
+                            <input type="range" id="radiusSlider" min="2" max="50" value="10" class="w-20 h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-500">
                         </div>
                     </div>
                 </div>
-            </div>
-            <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center shrink-0">
-                <button onclick="resetStyles()" class="text-red-500 hover:text-red-700 text-sm font-bold px-3">Reset Default</button>
-                <button onclick="toggleModal('settingsModal', false)" class="bg-blue-800 hover:bg-blue-900 text-white text-sm px-6 py-2.5 rounded-lg font-bold shadow hover:shadow-lg transition-all">Tutup</button>
-            </div>
-        </div>
-    </div>
 
-    <!-- DATA ENTRY MODAL -->
-    <div id="dataEntryModal" class="fixed inset-0 bg-black/60 z-[9999] hidden flex items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity duration-300">
-        <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden">
-            <div class="p-4 border-b border-green-100 bg-green-50 flex justify-between items-center">
-                <h3 class="font-bold text-green-900"><i class="fa-solid fa-file-excel text-green-600 mr-2"></i> Upload Excel (Max 100k+)</h3>
-                <button onclick="toggleModal('dataEntryModal', false)" class="text-gray-400 hover:text-red-500 transition-colors"><i class="fa-solid fa-times"></i></button>
-            </div>
-            <div class="p-8 flex flex-col items-center">
-                <div id="dropZone" class="file-drop-zone w-full h-48 rounded-xl flex flex-col items-center justify-center cursor-pointer mb-4 relative">
-                    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleFileSelect(this)">
-                    <i class="fa-solid fa-cloud-arrow-up text-5xl text-blue-300 mb-3"></i>
-                    <p class="text-sm text-slate-600 font-medium">Tarik File Excel ke sini</p>
-                    <p class="text-xs text-slate-400 mt-1">Support Large Files: .xlsx, .csv (Lat, Lon)</p>
-                </div>
-                <div id="fileInfo" class="hidden w-full bg-green-50 border border-green-200 rounded-lg p-3 flex justify-between items-center">
-                    <span class="text-xs text-green-800 font-medium"><i class="fa-solid fa-check-circle mr-1"></i> <span id="fileName">file.xlsx</span></span>
-                    <button onclick="resetUpload()" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-times"></i></button>
-                </div>
-                <button onclick="generateDummyData()" class="mt-4 w-full py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">Generate Dummy (50k Data)</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- DATA MANAGER MODAL -->
-    <div id="dataManagerModal" class="fixed inset-0 bg-black/60 z-[9999] hidden flex items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity duration-300">
-        <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
-            <div class="p-4 border-b border-blue-100 bg-blue-50 flex justify-between items-center">
-                <h3 class="font-bold text-blue-900"><i class="fa-solid fa-list-check text-blue-600 mr-2"></i> Kelola Data</h3>
-                <button onclick="toggleModal('dataManagerModal', false)" class="text-gray-400 hover:text-red-500 transition-colors"><i class="fa-solid fa-times"></i></button>
-            </div>
-            <div class="p-4 flex-1 overflow-hidden flex flex-col">
-                <div class="flex justify-between items-center mb-3">
-                    <span class="text-xs text-slate-500 font-bold">Total: <span id="managerCount">0</span></span>
-                    <button onclick="clearAllData()" class="text-xs bg-red-100 text-red-600 px-3 py-1.5 rounded font-bold hover:bg-red-200 transition-colors">Hapus Semua</button>
-                </div>
-                <div class="data-table-container flex-1 custom-scrollbar">
-                    <table class="data-table" id="mainDataTable"></table>
-                </div>
-                <p class="text-[10px] text-slate-400 mt-2 text-center italic">Menampilkan max 500 data pertama untuk performa</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- AI OUTPUT MODAL -->
-    <div id="aiModal" class="fixed inset-0 bg-black/50 z-[9999] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
-        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[80vh] border-t-4 border-blue-600">
-            <div class="p-4 border-b border-slate-100 flex justify-between items-center">
-                <h3 class="text-blue-900 font-bold"><i class="fa-solid fa-robot mr-2 text-blue-600"></i> Hasil Analisis</h3>
-                <button onclick="closeAIModal()" class="text-slate-400 hover:text-red-500 transition-colors"><i class="fa-solid fa-times text-xl"></i></button>
-            </div>
-            <div id="aiOutput" class="p-6 overflow-y-auto prose text-sm text-slate-700 flex-1 custom-scrollbar"></div>
-        </div>
-    </div>
-
-    <!-- MAIN CONTROL PANEL -->
-    <div id="controlContainer" class="absolute top-4 left-14 z-[1000] w-80 transition-all duration-300">
-        <div id="mainFullContent" class="glass-panel p-4 rounded-xl overflow-hidden">
-            <div class="draggable-header text-sm font-bold text-blue-900 mb-3 border-b border-blue-100 pb-2 flex justify-between items-center" data-target="controlContainer">
-                <div class="flex items-center gap-2"><i class="fa-solid fa-earth-asia text-blue-600"></i> Dashboard Satelit</div>
-                <div class="flex gap-1">
-                    <button onclick="openSettings()" class="text-slate-400 hover:text-blue-600 p-1" title="Pengaturan"><i class="fa-solid fa-gear"></i></button>
-                    <button onclick="toggleMinMax('controlContainer', true)" class="text-slate-400 hover:text-blue-600 p-1"><i class="fa-solid fa-compress"></i></button>
-                </div>
-            </div>
-            
-            <div class="space-y-4 max-h-[80vh] overflow-y-auto pr-1 custom-scrollbar">
-                <!-- Primary Actions -->
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="toggleModal('dataEntryModal', true)" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2.5 px-3 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors"><i class="fa-solid fa-upload"></i> Upload</button>
-                    <button onclick="openDataManager()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 px-3 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors"><i class="fa-solid fa-list-check"></i> Kelola</button>
-                </div>
-
-                <!-- AI Search -->
-                <div class="bg-blue-50 p-3 rounded-lg border border-blue-100 space-y-2">
-                    <label class="text-[10px] font-bold text-blue-800 uppercase"><i class="fa-solid fa-magnifying-glass mr-1"></i> Pencarian & AI</label>
-                    <div class="relative">
-                        <input type="text" id="aiCommandInput" placeholder="Cari Lokasi / Koordinat..." class="ai-input w-full text-xs p-2 pr-8 rounded border border-slate-200 bg-white" onkeypress="if(event.key==='Enter') handleAICommand()">
-                        <button onclick="handleAICommand()" class="absolute right-1 top-1 text-blue-600 p-1 hover:text-blue-800"><i class="fa-solid fa-paper-plane"></i></button>
+                <!-- 2. TOOLS TAB -->
+                <div id="view-tools" class="space-y-4 hidden">
+                    <div class="bg-slate-800/50 p-3 rounded border border-slate-700">
+                        <label class="text-[10px] font-bold text-green-400 uppercase mb-2 block"><i class="fa-solid fa-route mr-1"></i> Kalkulator Perjalanan</label>
+                        <div class="space-y-2">
+                            <input type="text" id="distA" placeholder="Titik A" class="input-field">
+                            <input type="text" id="distB" placeholder="Titik B" class="input-field">
+                            <div class="relative">
+                                <input type="number" id="travelSpeed" placeholder="Kecepatan (km/jam)" class="input-field" value="40">
+                                <span class="absolute right-3 top-2 text-xs text-slate-500">km/h</span>
+                            </div>
+                            <button onclick="calcDistanceAB()" class="btn-action btn-primary w-full">Hitung Jarak & Waktu</button>
+                        </div>
+                        <div id="distResult" class="hidden mt-2 p-2 bg-slate-900 rounded border border-yellow-500/30 text-center text-xs text-slate-300"></div>
                     </div>
-                    <div class="flex justify-between text-[10px] pt-1">
-                        <span class="text-slate-500 font-medium" id="dataCount">0 Data</span>
-                        <button onclick="resetFilter()" class="text-red-500 hover:text-red-700 font-bold">Reset</button>
+
+                    <div class="bg-slate-800/50 p-3 rounded border border-slate-700">
+                        <label class="text-[10px] font-bold text-purple-400 uppercase mb-2 block"><i class="fa-solid fa-map-pin mr-1"></i> Pin Lokasi (POI)</label>
+                        <button onclick="toggleAddPinMode()" id="btnAddPin" class="btn-action w-full"><i class="fa-solid fa-plus"></i> Tambah Pin</button>
                     </div>
                 </div>
 
-                <!-- Map Mode Info -->
-                <div class="text-xs text-slate-500 text-center font-medium bg-slate-100 p-1.5 rounded border border-slate-200">
-                    Peta Dasar: <span class="text-blue-600">Satelit Hybrid (Google)</span>
-                </div>
-
-                <!-- Visual Mode -->
-                <div>
-                    <label class="text-xs font-bold text-slate-600 block mb-1.5">Mode Visualisasi</label>
-                    <div class="relative">
-                        <select id="viewMode" onchange="renderLayer()" class="w-full bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none appearance-none">
-                            <option value="heatmap">🔥 Heatmap (Density)</option>
-                            <option value="point">📍 Titik (Markers)</option>
-                            <option value="circle">⭕ Lingkaran (Radius)</option>
-                            <option value="line">📈 Garis (Jalur)</option>
-                        </select>
-                        <i class="fa-solid fa-chevron-down absolute right-3 top-3 text-slate-400 text-xs pointer-events-none"></i>
+                <!-- 3. DATA TAB -->
+                <div id="view-data" class="space-y-4 hidden">
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="document.getElementById('fileInput').click()" class="btn-action btn-primary"><i class="fa-solid fa-upload"></i> Upload Excel</button>
+                        <button onclick="generateDummy()" class="btn-action"><i class="fa-solid fa-database"></i> Dummy 10k</button>
+                        <input type="file" id="fileInput" accept=".xlsx,.csv" hidden onchange="handleFileUpload(this)">
                     </div>
+                    
+                    <!-- Progress Bar for Large Data -->
+                    <div id="progressWrapper">
+                        <div id="progressBar"></div>
+                    </div>
+
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-1">
+                        <span class="text-xs font-bold text-slate-400">Data: <span id="dataCount" class="text-white">0</span></span>
+                        <button onclick="clearData()" class="text-xs text-red-400 hover:text-red-300">Hapus</button>
+                    </div>
+
+                    <div class="data-table-container h-48">
+                        <table class="data-table" id="dataTable"></table>
+                    </div>
+                    <p class="text-[10px] text-slate-500 italic text-center">Klik baris untuk zoom. <br>Max 2000 titik ditampilkan (Heatmap unlimited).</p>
                 </div>
 
-                <!-- Quick Radius -->
-                <div>
-                    <label class="text-xs font-bold text-slate-600 block mb-1.5">Ukuran Cepat</label>
-                    <input type="range" id="radiusSlider" min="5" max="100" value="25" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
-                </div>
-
-                <!-- Analysis Buttons -->
-                <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
-                    <button onclick="askAIGeneral()" class="text-xs bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 font-bold py-2 rounded shadow-sm transition-all"><i class="fa-solid fa-chart-pie mr-1 text-blue-500"></i> Analisis Data</button>
-                    <button onclick="askAIArea()" class="text-xs bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 font-bold py-2 rounded shadow-sm transition-all"><i class="fa-solid fa-vector-square mr-1 text-green-500"></i> Analisis Area</button>
-                </div>
             </div>
-        </div>
-        
-        <!-- Minimized Icon -->
-        <div id="mainMiniContent" class="hidden draggable-header glass-panel w-12 h-12 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-50 border border-blue-200 shadow-lg hover:scale-110 transition-transform" onclick="toggleMinMax('controlContainer', false)">
-            <i class="fa-solid fa-earth-asia text-blue-600 text-lg"></i>
+
+            <div class="p-2 bg-slate-900 border-t border-slate-800 flex justify-between items-center">
+                <button onclick="openSettings()" class="text-slate-500 hover:text-white px-2 text-xs"><i class="fa-solid fa-key"></i> API Key</button>
+                <span class="text-[10px] text-slate-600">v2.5 BigData</span>
+            </div>
         </div>
     </div>
 
-    <!-- MEASUREMENT PANEL -->
-    <div id="measurePanel" class="absolute top-80 left-14 z-[1000] w-72 hidden">
-        <div class="glass-panel p-4 rounded-xl">
-            <div class="draggable-header text-sm font-bold text-blue-900 mb-2 flex justify-between items-center" data-target="measurePanel">
-                <span><i class="fa-solid fa-ruler-combined text-green-600 mr-2"></i>Hasil Ukur</span>
-                <button onclick="clearDrawings()" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash"></i></button>
-            </div>
-            <div class="bg-green-50 border border-green-200 rounded p-3 text-center">
-                <span id="measureResult" class="text-2xl font-bold text-green-700 font-mono">0.00</span> <span class="text-xs text-green-600 font-bold">KM</span>
+    <!-- MEASUREMENT RESULT FLOAT -->
+    <div id="measureFloat" class="fixed top-4 left-1/2 -translate-x-1/2 z-[1000] ui-panel px-4 py-2 hidden flex-col items-center animate-fade-in border-t-4 border-green-500">
+        <span class="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Hasil Ukur</span>
+        <span id="measureVal" class="text-xl font-bold text-green-400 font-mono my-1">0.00 KM</span>
+        <button onclick="clearMeasurements()" class="text-[10px] text-red-400 hover:text-red-300 hover:underline">Hapus</button>
+    </div>
+
+    <!-- API SETTINGS MODAL -->
+    <div id="apiModal" class="fixed inset-0 bg-black/80 z-[2000] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="ui-panel w-full max-w-sm p-5 bg-slate-900 border border-slate-700">
+            <h3 class="font-bold text-blue-400 mb-3">Konfigurasi API</h3>
+            <label class="text-xs text-slate-400 block mb-1">Gemini API Key</label>
+            <input type="password" id="apiKeyInput" class="input-field mb-3" placeholder="Paste Key...">
+            <div class="flex justify-end gap-2">
+                <button onclick="document.getElementById('apiModal').classList.add('hidden')" class="btn-action">Tutup</button>
+                <button onclick="saveKey()" class="btn-action btn-primary">Simpan</button>
             </div>
         </div>
     </div>
@@ -273,571 +211,262 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <script>
-        // --- GLOBAL STATE ---
-        let rawData = [], displayData = [], activeLayer = null;
-        let isUpdatingMap = false;
-        let pegmanMode = false;
-        
-        const defaultStyles = {
-            point: { color: '#f97316', radius: 5, opacity: 0.9 },
-            circle: { color: '#ef4444', radiusScale: 20, opacity: 0.5 },
-            line: { color: '#2563eb', weight: 3, opacity: 0.8 },
-            heatmap: { radius: 20, blur: 15, opacity: 0.7, max: 1.0 }
-        };
-        let styleConfig = JSON.parse(JSON.stringify(defaultStyles));
+        // --- STATE ---
+        let map, drawnItems, activeLayer;
+        let appData = [];
+        let isPinMode = false;
+        const apiKeyKey = 'gemini_api_key';
 
-        // --- INITIALIZATION ---
-        const map = L.map('map', {center: [-6.200, 106.816], zoom: 11, zoomControl: false, preferCanvas: true});
-        L.control.zoom({position: 'bottomright'}).addTo(map);
-
-        // HTTPS Google Maps Layers
-        const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { 
-            maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'], attribution: 'Map data ©2024 Google'
-        });
-        googleHybrid.addTo(map);
-        const drawnItems = new L.FeatureGroup().addTo(map);
-
-        // --- CUSTOM PEGMAN CONTROL ---
-        const PegmanControl = L.Control.extend({
-            options: { position: 'bottomright' },
-            onAdd: function(map) {
-                const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control custom-pegman-control');
-                const btn = L.DomUtil.create('a', 'pegman-btn', container);
-                btn.href = "#"; btn.title = "Mode Street View";
-                btn.innerHTML = '<i class="fa-solid fa-street-view fa-lg"></i>';
-                btn.style.display = 'flex'; btn.style.alignItems = 'center'; btn.style.justifyContent = 'center';
-                btn.style.width = '100%'; btn.style.height = '100%'; btn.style.textDecoration = 'none';
-                btn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); toggleStreetViewMode(container); };
-                return container;
-            }
-        });
-        map.addControl(new PegmanControl());
-
-        function toggleStreetViewMode(container) {
-            pegmanMode = !pegmanMode;
-            if (pegmanMode) {
-                container.classList.add('pegman-active');
-                document.getElementById('map').classList.add('cursor-streetview');
-                document.getElementById('map').style.cursor = ''; 
-            } else {
-                container.classList.remove('pegman-active');
-                document.getElementById('map').classList.remove('cursor-streetview');
-                document.getElementById('map').style.cursor = 'crosshair';
-            }
-        }
-
-        // --- DOM LOAD ---
+        // --- INIT ---
         document.addEventListener('DOMContentLoaded', () => {
-            const savedKey = localStorage.getItem('gemini_api_key') || "";
-            const keyInput = document.getElementById('apiKeyInput');
-            if(keyInput) keyInput.value = savedKey;
+            initMap();
+            initDraw();
+            const k = localStorage.getItem(apiKeyKey);
+            if(k) document.getElementById('apiKeyInput').value = k;
             const rSlider = document.getElementById('radiusSlider');
             if(rSlider) {
-                rSlider.addEventListener('input', function() { 
-                    if (!isUpdatingMap) { requestAnimationFrame(() => { const val = parseInt(this.value); renderLayer(); isUpdatingMap = false; }); isUpdatingMap = true; } 
-                });
+                rSlider.addEventListener('input', () => requestAnimationFrame(renderData));
             }
-            
-            map.on('click', function(e) {
-                if(document.querySelector('.leaflet-draw-tooltip')) return;
-                
-                const lat = e.latlng.lat.toFixed(6);
-                const lng = e.latlng.lng.toFixed(6);
-
-                if (pegmanMode) {
-                    const svUrl = `https://www.google.com/maps?q=&layer=c&cbll=${e.latlng.lat},${e.latlng.lng}`;
-                    window.open(svUrl, '_blank');
-                } else {
-                    L.popup()
-                        .setLatLng(e.latlng)
-                        .setContent(`
-                            <div class="text-center font-sans p-1 min-w-[150px]">
-                                <b class="text-blue-900">Lokasi Terpilih</b><br>
-                                <span class="text-xs text-slate-500">${lat}, ${lng}</span>
-                                <div class="mt-2 flex flex-col gap-1">
-                                    <button onclick="analyzeLocation(${lat}, ${lng})" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 px-2 rounded shadow flex items-center justify-center gap-1">
-                                        <i class="fa-solid fa-robot"></i> Analisis AI
-                                    </button>
-                                    <a href="https://www.google.com/maps?q=&layer=c&cbll=${e.latlng.lat},${e.latlng.lng}" target="_blank" class="w-full bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-1.5 px-2 rounded shadow flex items-center justify-center gap-1 no-underline">
-                                        <i class="fa-solid fa-street-view"></i> Street View
-                                    </a>
-                                </div>
-                            </div>
-                        `)
-                        .openOn(map);
-                }
-            });
         });
 
-        // --- EXPORTED GLOBAL FUNCTIONS ---
-        window.analyzeLocation = analyzeLocation;
-        window.analyzeDataPoint = analyzeDataPoint;
-        window.zoomToData = zoomToData;
-
-        // --- FUNCTIONS ---
-        function getApiKey() { return localStorage.getItem('gemini_api_key') || ""; }
-        function saveApiKey() {
-            const key = document.getElementById('apiKeyInput').value.trim();
-            if(key) { localStorage.setItem('gemini_api_key', key); alert("API Key tersimpan!"); }
-        }
-        function toggleApiKeyVisibility() {
-            const input = document.getElementById('apiKeyInput');
-            const icon = document.getElementById('eyeIcon');
-            if(input.type === 'password') { input.type='text'; icon.className='fa-solid fa-eye-slash'; }
-            else { input.type='password'; icon.className='fa-solid fa-eye'; }
+        function initMap() {
+            map = L.map('map', { center: [-6.200, 106.816], zoom: 12, zoomControl: false });
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+            setMapLayer('google_sat');
+            map.on('click', (e) => { if(isPinMode) addPin(e.latlng); });
         }
 
-        function openSettings() { toggleModal('settingsModal', true); switchStyleTab('point'); }
-        function switchStyleTab(mode) {
-            document.querySelectorAll('.style-tab').forEach(b => { b.classList.remove('setting-tab-active'); b.classList.add('text-slate-500', 'hover:bg-white'); });
-            document.getElementById('tab-'+mode).classList.add('setting-tab-active');
-            document.getElementById('tab-'+mode).classList.remove('text-slate-500');
-            const styleWrap = document.getElementById('styleContentWrapper');
-            const apiWrap = document.getElementById('apiContentWrapper');
-            if(mode === 'api') { styleWrap.classList.add('hidden'); apiWrap.classList.remove('hidden'); }
-            else { styleWrap.classList.remove('hidden'); apiWrap.classList.add('hidden'); 
-                const titles = { 'point': 'Pengaturan Titik', 'circle': 'Pengaturan Lingkaran', 'line': 'Pengaturan Garis', 'heatmap': 'Pengaturan Heatmap' };
-                document.getElementById('styleTitle').innerText = titles[mode];
-                renderStyleControls(mode); 
-            }
+        function setMapLayer(type) {
+            map.eachLayer((l) => { if(l._url) map.removeLayer(l); });
+            let url = type === 'google_road' ? 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}' : 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+            L.tileLayer(url, { maxZoom: 20, attribution: 'Google Maps' }).addTo(map);
         }
 
-        function renderStyleControls(mode) {
-            const c = document.getElementById('styleControls');
-            const cf = styleConfig[mode];
-            let html = `
-                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center justify-between"><div><label class="text-xs font-bold text-blue-800 block">Warna Utama</label></div><input type="color" value="${cf.color}" onchange="updateConfig('${mode}', 'color', this.value)"></div>
-                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100"><label class="text-xs font-bold text-blue-800 block mb-2">Transparansi (<span id="label-${mode}-opacity">${cf.opacity}</span>)</label><input type="range" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" min="0.1" max="1" step="0.1" value="${cf.opacity}" oninput="updateConfig('${mode}', 'opacity', this.value)"></div>`;
-            if(mode === 'heatmap') {
-                 html = `<div class="bg-blue-50 p-4 rounded-lg border border-blue-100"><label class="text-xs font-bold text-blue-800 block mb-2">Kepadatan (<span id="label-${mode}-max">${cf.max}</span>)</label><input type="range" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" min="0.1" max="10" step="0.1" value="${cf.max}" oninput="updateConfig('${mode}', 'max', this.value)"></div><div class="bg-blue-50 p-4 rounded-lg border border-blue-100"><label class="text-xs font-bold text-blue-800 block mb-2">Radius (<span id="label-${mode}-radius">${cf.radius}</span>px)</label><input type="range" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" min="5" max="100" value="${cf.radius}" oninput="updateConfig('${mode}', 'radius', this.value)"></div>`;
-            }
-            else if(mode === 'point') html += `<div class="bg-blue-50 p-4 rounded-lg border border-blue-100"><label class="text-xs font-bold text-blue-800 block mb-2">Ukuran (<span id="label-${mode}-radius">${cf.radius}</span>px)</label><input type="range" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" min="2" max="20" value="${cf.radius}" oninput="updateConfig('${mode}', 'radius', this.value)"></div>`;
-            else if(mode === 'circle') html += `<div class="bg-blue-50 p-4 rounded-lg border border-blue-100"><label class="text-xs font-bold text-blue-800 block mb-2">Skala (<span id="label-${mode}-radiusScale">${cf.radiusScale}</span>x)</label><input type="range" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" min="5" max="100" value="${cf.radiusScale}" oninput="updateConfig('${mode}', 'radiusScale', this.value)"></div>`;
-            else if(mode === 'line') html += `<div class="bg-blue-50 p-4 rounded-lg border border-blue-100"><label class="text-xs font-bold text-blue-800 block mb-2">Tebal (<span id="label-${mode}-weight">${cf.weight}</span>px)</label><input type="range" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" min="1" max="10" value="${cf.weight}" oninput="updateConfig('${mode}', 'weight', this.value)"></div>`;
-            c.innerHTML = html;
-        }
-
-        function updateConfig(mode, key, val) {
-            if(key !== 'color') val = parseFloat(val);
-            styleConfig[mode][key] = val;
-            const label = document.getElementById(`label-${mode}-${key}`);
-            if(label) label.innerText = val;
-            if (!isUpdatingMap) { requestAnimationFrame(() => { updateActiveLayerStyle(mode); isUpdatingMap = false; }); isUpdatingMap = true; }
-        }
-
-        function updateActiveLayerStyle(mode) {
-            if (document.getElementById('viewMode').value !== mode || !activeLayer) return;
-            const cf = styleConfig[mode];
-            if (mode === 'heatmap') { activeLayer.setOptions({ radius: cf.radius, blur: cf.blur, max: cf.max }); } 
-            else {
-                activeLayer.eachLayer(layer => {
-                    if (mode === 'point') { if (layer.setRadius) layer.setRadius(cf.radius); if (layer.setStyle) layer.setStyle({ fillColor: cf.color, fillOpacity: cf.opacity, opacity: cf.opacity }); }
-                    else if (mode === 'circle') { if (layer.setRadius) layer.setRadius(cf.radiusScale); if (layer.setStyle) layer.setStyle({ color: cf.color, opacity: cf.opacity }); }
-                    else if (mode === 'line') { if (layer instanceof L.Polyline && !(layer instanceof L.CircleMarker)) layer.setStyle({ color: cf.color, weight: cf.weight, opacity: cf.opacity }); }
-                });
-            }
-        }
-
-        function applyStyles() { renderLayer(); toggleModal('settingsModal', false); }
-        function resetStyles() { styleConfig = JSON.parse(JSON.stringify(defaultStyles)); const t = document.querySelector('.setting-tab-active').id.replace('tab-', ''); if(t!=='api') renderStyleControls(t); renderLayer(); }
-
-        // --- DATA ---
-        function toggleModal(id, show) {
-            const m = document.getElementById(id);
-            if(show) { m.classList.remove('hidden'); setTimeout(()=>m.classList.remove('opacity-0'),10); }
-            else { m.classList.add('opacity-0'); setTimeout(()=>m.classList.add('hidden'),300); }
-        }
-
-        // NEW: CHUNK PROCESSING FOR LARGE DATA
-        function handleFileSelect(input) {
+        // --- DATA HANDLING (CHUNKED) ---
+        function handleFileUpload(input) {
             const file = input.files[0];
-            if (!file) return;
-            document.getElementById('fileName').innerText = file.name;
-            document.getElementById('fileInfo').classList.remove('hidden');
-            document.getElementById('dropZone').classList.add('hidden');
+            if(!file) return;
             
             const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('dataLoader').style.display = 'flex'; // Show Loader
-                document.getElementById('loaderStatus').innerText = "Membaca data...";
-                
-                setTimeout(() => { // Break stack
-                    const wb = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
-                    const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                    processDataInChunks(json);
-                }, 50);
+            reader.onload = (e) => {
+                const wb = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+                const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                parseDataInChunks(json);
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // CHUNKING FUNCTION
-        function processDataInChunks(json) {
-            let newData = [];
-            let latKey, lonKey;
-            const keys = Object.keys(json[0] || {});
-            
-            // Key detection
-            keys.forEach(k => { const l = k.toLowerCase(); if(l.includes('lat')) latKey=k; else if(l.includes('lon')||l.includes('lng')) lonKey=k; });
-            let combinedKey = null;
-            if (!latKey || !lonKey) { keys.forEach(k => { const val = json[0][k]; if (typeof val === 'string' && val.trim().match(/^-?\d+(\.\d+)?\s+-?\d+(\.\d+)?$/)) combinedKey = k; }); }
-
-            if(!latKey && !lonKey && !combinedKey) {
-                document.getElementById('dataLoader').style.display = 'none';
-                alert("Kolom Latitude/Longitude tidak ditemukan.");
-                return;
+        function generateDummy() {
+            // Generate 10,000 rows
+            const d = [];
+            for(let i=0; i<10000; i++) {
+                d.push({
+                    lat: -6.2 + (Math.random()-0.5)*0.2,
+                    lng: 106.8 + (Math.random()-0.5)*0.2,
+                    props: { ID: i, Val: Math.floor(Math.random()*100) }
+                });
             }
+            appData = d;
+            updateDataUI();
+            alert("10.000 Data Dummy Dimuat!");
+        }
 
+        function parseDataInChunks(json) {
+            appData = [];
             const total = json.length;
-            const chunkSize = 5000; // Process 5000 rows at a time
+            const chunkSize = 2000;
             let index = 0;
+            const progress = document.getElementById('progressBar');
+            const wrapper = document.getElementById('progressWrapper');
+            
+            wrapper.style.display = 'block';
 
             function processChunk() {
                 const end = Math.min(index + chunkSize, total);
-                for (let i = index; i < end; i++) {
+                for(let i=index; i<end; i++) {
                     const row = json[i];
                     let lat, lng;
-                    if (combinedKey) { const parts = row[combinedKey].toString().trim().split(/[\s,;]+/); if(parts.length >= 2) { lat = parseFloat(parts[0]); lng = parseFloat(parts[1]); } } 
-                    else { lat = parseFloat(row[latKey]); lng = parseFloat(row[lonKey]); }
-
-                    if(!isNaN(lat) && !isNaN(lng)) {
-                        newData.push({ lat: lat, lng: lng, props: row });
+                    Object.keys(row).forEach(k => {
+                        if(k.toLowerCase().includes('lat')) lat = row[k];
+                        if(k.toLowerCase().includes('lon') || k.toLowerCase().includes('lng')) lng = row[k];
+                    });
+                    if(!lat && !lng) {
+                        Object.values(row).forEach(val => {
+                            if(typeof val === 'string' && val.includes(',')) {
+                                const parts = val.split(',');
+                                if(!isNaN(parseFloat(parts[0]))) { lat = parts[0]; lng = parts[1]; }
+                            }
+                        });
                     }
+                    if(lat && lng) appData.push({ lat: parseFloat(lat), lng: parseFloat(lng), props: row });
                 }
 
                 index = end;
-                const pct = Math.round((index / total) * 100);
-                document.getElementById('loaderProgress').style.width = pct + "%";
-                document.getElementById('loaderStatus').innerText = `Memproses: ${index} / ${total}`;
+                progress.style.width = (index/total*100) + '%';
 
-                if (index < total) {
-                    setTimeout(processChunk, 0); // Yield to main thread
+                if(index < total) {
+                    setTimeout(processChunk, 10);
                 } else {
-                    // Done
-                    finishProcessing(newData);
+                    wrapper.style.display = 'none';
+                    updateDataUI();
+                    if(appData.length) map.fitBounds(L.latLngBounds(appData.slice(0,1000).map(d=>[d.lat,d.lng])));
                 }
             }
-
             processChunk();
         }
 
-        function finishProcessing(data) {
-            if(data.length > 0) { 
-                rawData = data; 
-                displayData = [...rawData]; 
-                
-                // Sample bounds calculation for performance
-                const sample = data.slice(0, 1000);
-                map.fitBounds(L.latLngBounds(sample.map(d=>[d.lat,d.lng]))); 
-                
-                updateUI(); 
-                toggleModal('dataEntryModal', false); 
-            } else alert("Data tidak valid.");
-            
-            document.getElementById('dataLoader').style.display = 'none';
+        function updateDataUI() {
+            document.getElementById('dataCount').innerText = appData.length;
+            const tbody = document.getElementById('dataTable');
+            tbody.innerHTML = '';
+            // Only render first 100 rows to table to save memory
+            appData.slice(0, 100).forEach((d, i) => {
+                tbody.innerHTML += `<tr onclick="zoomTo(${d.lat},${d.lng})"><td>${i+1}</td><td>${d.lat.toFixed(4)}</td><td>${d.lng.toFixed(4)}</td></tr>`;
+            });
+            renderData();
         }
-
-        function resetUpload() { document.getElementById('fileInput').value = ''; document.getElementById('fileInfo').classList.add('hidden'); document.getElementById('dropZone').classList.remove('hidden'); }
         
-        function generateDummyData() {
-            document.getElementById('dataLoader').style.display = 'flex';
-            document.getElementById('loaderStatus').innerText = "Generating Dummy Data...";
-            
-            setTimeout(() => {
-                rawData=[]; const clat=-6.200, clng=106.816;
-                for(let i=0; i<50000; i++) { // Increased dummy size to test performance
-                    let h = Math.floor(i/100); 
-                    let time = `${h}:00`;
-                    let row = { 'Latitude': clat, 'Longitude': clng, 'Time': time, 'Info': 'Large Data' };
-                    // Cluster around center
-                    const lat = clat+(Math.random()-0.5)*0.5;
-                    const lng = clng+(Math.random()-0.5)*0.5;
-                    rawData.push({ lat: lat, lng: lng, props: row });
-                }
-                displayData=[...rawData]; 
-                map.fitBounds(L.latLngBounds(rawData.slice(0,1000).map(d=>[d.lat,d.lng])));
-                updateUI(); 
-                toggleModal('dataEntryModal', false);
-                document.getElementById('dataLoader').style.display = 'none';
-            }, 500);
-        }
+        function clearData() { appData = []; updateDataUI(); if(activeLayer) map.removeLayer(activeLayer); }
+        function zoomTo(lat, lng) { map.flyTo([lat, lng], 18); L.marker([lat, lng]).addTo(map).bindPopup("Lokasi Data").openPopup(); }
 
-        function openDataManager() {
-            toggleModal('dataManagerModal', true);
-            const table = document.getElementById('mainDataTable');
-            table.innerHTML = '';
-            document.getElementById('managerCount').innerText = rawData.length;
-            if(rawData.length === 0) return;
-            const headers = Object.keys(rawData[0].props);
-            let thead = '<thead><tr><th class="w-10">#</th>';
-            headers.forEach(h => thead += `<th>${h}</th>`);
-            thead += '<th class="w-10 text-center">Aksi</th></tr></thead>';
-            table.innerHTML = thead;
-            let tbody = '<tbody>';
-            // Still limit display in table for performance
-            const limit = Math.min(rawData.length, 500);
-            for(let i=0; i<limit; i++) {
-                const d = rawData[i];
-                tbody += `<tr class="hover:bg-blue-50 cursor-pointer transition-colors" onclick="zoomToData(${i})" title="Klik untuk lihat di peta">
-                    <td class="text-gray-400 text-xs">${i+1}</td>`;
-                headers.forEach(h => {
-                    let val = d.props[h];
-                    if(typeof val === 'object' && val !== null) val = JSON.stringify(val);
-                    if(typeof val === 'number' && val % 1 !== 0) val = val.toFixed(5);
-                    tbody += `<td>${val !== undefined ? val : '-'}</td>`;
-                });
-                tbody += `<td class="text-center" onclick="event.stopPropagation()"><i class="fa-solid fa-trash-can btn-delete-row cursor-pointer text-red-500" onclick="deleteRow(${i})"></i></td></tr>`;
-            }
-            tbody += '</tbody>';
-            table.innerHTML += tbody;
-        }
+        // --- VISUALIZATION ---
+        function renderData() {
+            if(activeLayer) map.removeLayer(activeLayer);
+            const mode = document.getElementById('vizMode').value;
+            const rad = parseInt(document.getElementById('radiusSlider').value);
 
-        function zoomToData(index) {
-            const d = rawData[index];
-            if(!d) return;
-            toggleModal('dataManagerModal', false);
-            map.flyTo([d.lat, d.lng], 18, { duration: 1.5 });
-            const content = createPopup(d);
-            L.popup().setLatLng([d.lat, d.lng]).setContent(content).openOn(map);
-        }
-
-        function deleteRow(i) { if(confirm("Hapus?")) { rawData.splice(i,1); displayData=[...rawData]; openDataManager(); updateUI(); } }
-        function clearAllData() { if(confirm("Hapus SEMUA?")) { rawData=[]; displayData=[]; openDataManager(); updateUI(); } }
-        function updateUI() { document.getElementById('dataCount').innerText = `${displayData.length} Data`; renderLayer(); }
-
-        // --- RENDER ---
-        function renderLayer() {
-            if(map.getSize().x === 0) { setTimeout(renderLayer, 200); return; }
-            if(activeLayer) { map.removeLayer(activeLayer); activeLayer=null; }
-            const mode = document.getElementById('viewMode').value;
-            const cf = styleConfig[mode];
-
-            // PERFORMANCE CHECK
-            const total = displayData.length;
-            
             if(mode === 'heatmap') {
-                // Heatmap handles 100k fine
-                activeLayer = L.heatLayer(displayData.map(d=>[d.lat,d.lng, 1]), { 
-                    radius: cf.radius, blur: cf.blur, max: cf.max,
-                    gradient: {0.0: 'navy', 0.3: 'blue', 0.5: 'lime', 0.7: 'yellow', 1.0: 'red'}
-                }).addTo(map);
-                setupClick(true);
+                // Heatmap handles 10k+ points easily
+                activeLayer = L.heatLayer(appData.map(d=>[d.lat, d.lng, 1]), { radius: rad*1.5, blur: 15, gradient: {0.2:'blue', 0.5:'lime', 1:'red'} }).addTo(map);
             } else if(mode === 'line') {
-                // Line handles 100k decent on canvas
-                activeLayer = L.featureGroup();
-                const latlngs = displayData.map(d => [d.lat, d.lng]);
-                L.polyline(latlngs, { color: cf.color, weight: cf.weight, opacity: cf.opacity }).addTo(activeLayer);
-                activeLayer.addTo(map);
-                setupClick(false);
+                // Polyline handles many points well on canvas
+                activeLayer = L.polyline(appData.map(d=>[d.lat, d.lng]), { color: '#3b82f6', weight: 2 }).addTo(map);
             } else {
-                // POINTS/CIRCLES: DOWNSAMPLING FOR PERFORMANCE
                 activeLayer = L.featureGroup();
+                // LIMIT MARKERS to avoid crash
+                const limit = Math.min(appData.length, 2000);
+                if(appData.length > 2000) console.warn("Limiting markers to 2000 for performance");
                 
-                let step = 1;
-                let limit = total;
-                
-                // If data > 3000, force downsample or user browser dies
-                if (total > 3000) {
-                    limit = 3000; // Render max 3000 visible points
-                    step = Math.ceil(total / limit);
-                    // Show warning toast or simple alert once
-                    console.warn(`Data too large (${total}). Downsampling display to ~${limit} points.`);
-                }
-
-                for(let i=0; i<total; i+=step) {
-                    const d = displayData[i];
-                    let m;
-                    // Use Canvas renderer for markers
-                    const markerOpts = { renderer: L.canvas(), radius: cf.radius, fillColor: cf.color, color:'#fff', weight:1, fillOpacity: cf.opacity };
-                    const circleOpts = { renderer: L.canvas(), radius: cf.radiusScale, color: cf.color, weight:1, opacity: cf.opacity };
-
-                    if(mode==='point') m = L.circleMarker([d.lat,d.lng], markerOpts);
-                    else m = L.circle([d.lat,d.lng], circleOpts);
+                for(let i=0; i<limit; i++) {
+                    const d = appData[i];
+                    const m = mode === 'point' 
+                        ? L.circleMarker([d.lat, d.lng], { radius: rad/2, color: '#f97316', fillColor:'#f97316', fillOpacity: 0.8 }) 
+                        : L.circle([d.lat, d.lng], { radius: rad*10, color: '#ef4444', weight: 1 });
                     
-                    m.bindPopup(createPopup(d)).addTo(activeLayer);
+                    // Minimal popup content
+                    let info = `<b>Data #${i+1}</b><br>${d.lat}, ${d.lng}`;
+                    m.bindPopup(info);
+                    m.addTo(activeLayer);
                 }
                 activeLayer.addTo(map);
-                setupClick(false);
             }
         }
 
-        // HELPER: Format Time & Duration
-        function formatExcelSerialDate(serial) {
-            if (!serial) return "";
-            const date = new Date(Math.round((serial - 25569) * 86400 * 1000));
-            const d = String(date.getDate()).padStart(2, '0');
-            const m = String(date.getMonth() + 1).padStart(2, '0');
-            const y = date.getFullYear();
-            return `${d}/${m}/${y}`;
-        }
-
-        function formatExcelSerialTime(serial) {
-            if (serial === undefined || serial === null) return "";
-            let frac = serial % 1; 
-            let totalSeconds = Math.round(frac * 86400);
-            const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
-            const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
-            const s = String(totalSeconds % 60).padStart(2, '0');
-            return `${h}:${m}:${s}`;
-        }
-
-        function formatDuration(secondsInput) {
-            if (!secondsInput) return "";
-            let val = parseFloat(secondsInput);
-            let totalSeconds = Math.round(val);
-            const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
-            const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
-            const s = String(totalSeconds % 60).padStart(2, '0');
-            return `${h}:${m}:${s}`;
-        }
-
-        function createPopup(d) {
-            let content = `<div class='font-sans text-left min-w-[150px]'>`;
-            content += `<div class="bg-blue-50 p-2 -mx-3 -mt-3 mb-2 border-b border-blue-100 rounded-t text-center"><b class="text-blue-800">Info Data</b></div>`;
+        // --- TOOLS: DISTANCE & TIME ---
+        async function calcDistanceAB() {
+            const aInput = document.getElementById('distA').value;
+            const bInput = document.getElementById('distB').value;
+            const speedInput = document.getElementById('travelSpeed').value;
             
-            for (const [key, value] of Object.entries(d.props)) {
-                let displayVal = value;
-                let kLower = key.toLowerCase();
+            if(!aInput || !bInput) return alert("Isi Titik A dan B");
+            if(!speedInput || speedInput <= 0) return alert("Isi Kecepatan");
 
-                if ((kLower.includes('start') || kLower.includes('end')) && kLower.includes('date')) {
-                    if (typeof value === 'number') displayVal = formatExcelSerialDate(value);
-                }
+            const key = localStorage.getItem(apiKeyKey);
+            const isCoord = (str) => /^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(str);
+            let latlngA, latlngB;
 
-                if ((kLower.includes('start') || kLower.includes('end')) && kLower.includes('time')) {
-                    if (typeof value === 'number') displayVal = formatExcelSerialTime(value);
-                }
-
-                if (kLower.includes('duration')) {
-                    displayVal = formatDuration(value);
-                }
-
-                if(typeof value === 'number' && value % 1 !== 0 && !kLower.includes('date') && !kLower.includes('time') && !kLower.includes('duration')) {
-                     displayVal = value.toFixed(5);
-                }
-
-                content += `<div class="flex justify-between text-xs mb-1"><span class="text-slate-500 font-medium mr-2">${key}:</span> <span class="text-slate-800">${displayVal}</span></div>`;
+            if (isCoord(aInput) && isCoord(bInput)) {
+                const a = aInput.split(',').map(Number); const b = bInput.split(',').map(Number);
+                latlngA = L.latLng(a[0], a[1]); latlngB = L.latLng(b[0], b[1]);
+                calculateAndDraw(latlngA, latlngB, speedInput);
+            } else {
+                if(!key) return alert("API Key diperlukan untuk pencarian.");
+                document.getElementById('aiProcessing').style.display = 'flex';
+                try {
+                    const prompt = `Return JSON only: coordinates for "${aInput}" as origin and "${bInput}" as dest. Format: { "a": [lat, lon], "b": [lat, lon] }`;
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`, {
+                        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ contents: [{parts:[{text: prompt}]}] })
+                    });
+                    const data = await res.json();
+                    const coords = JSON.parse(data.candidates[0].content.parts[0].text.replace(/```json|```/g,'').trim());
+                    if(coords.a && coords.b) calculateAndDraw(L.latLng(coords.a), L.latLng(coords.b), speedInput);
+                } catch(e) { alert("Gagal mencari lokasi."); } 
+                finally { document.getElementById('aiProcessing').style.display = 'none'; }
             }
-            
-            const dataStr = JSON.stringify(d.props).replace(/"/g, '&quot;');
-            content += `
-                <div class="mt-2 pt-2 border-t border-slate-100 flex gap-1">
-                    <a href="https://www.google.com/maps?q=&layer=c&cbll=${d.lat},${d.lng}" target="_blank" class="flex-1 bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold py-1 px-2 rounded text-center"><i class="fa-solid fa-street-view"></i> SV</a>
-                    <button onclick='analyzeDataPoint(${d.lat}, ${d.lng}, ${dataStr})' class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1 px-2 rounded"><i class="fa-solid fa-robot"></i> AI</button>
-                </div>
-            </div>`;
-            return content;
         }
 
-        // --- AI & MISC ---
-        async function callAI(prompt) {
-            const key = getApiKey();
-            if(!key) {
-                alert("API Key Needed! Buka Pengaturan.");
-                return null;
+        function calculateAndDraw(latlngA, latlngB, speedKmH) {
+            if(window.distLine) map.removeLayer(window.distLine);
+            if(window.distMarkers) window.distMarkers.forEach(m => map.removeLayer(m));
+            window.distMarkers = [ L.marker(latlngA).addTo(map), L.marker(latlngB).addTo(map) ];
+            window.distLine = L.polyline([latlngA, latlngB], { color: '#ec4899', dashArray: '10, 10', weight: 4 }).addTo(map);
+            map.fitBounds([latlngA, latlngB], { padding: [50,50] });
+            
+            const distKm = latlngA.distanceTo(latlngB) / 1000;
+            const timeHours = distKm / speedKmH;
+            const h = Math.floor(timeHours);
+            const m = Math.round((timeHours - h) * 60);
+            const timeStr = h > 0 ? `${h} jam ${m} menit` : `${m} menit`;
+
+            const resDiv = document.getElementById('distResult');
+            resDiv.classList.remove('hidden');
+            resDiv.innerHTML = `<div>Jarak: <b class="text-green-400">${distKm.toFixed(2)} KM</b></div><div>Waktu: <b class="text-yellow-400">${timeStr}</b></div>`;
+        }
+
+        // --- TOOLS: POI ---
+        function toggleAddPinMode() {
+            isPinMode = !isPinMode;
+            const btn = document.getElementById('btnAddPin');
+            if(isPinMode) {
+                btn.classList.add('btn-primary'); btn.innerHTML = '<i class="fa-solid fa-check"></i> Selesai'; map.getContainer().style.cursor = 'crosshair';
+            } else {
+                btn.classList.remove('btn-primary'); btn.innerHTML = '<i class="fa-solid fa-plus"></i> Tambah Pin'; map.getContainer().style.cursor = '';
             }
+        }
+        function addPin(latlng) {
+            const label = prompt("Nama Lokasi:", "Lokasi Baru");
+            if(label) L.marker(latlng).addTo(map).bindPopup(`<b>${label}</b>`).openPopup();
+        }
+
+        // --- UI ---
+        function togglePanel(show) {
+            const p = document.getElementById('controlPanel');
+            const btn = document.getElementById('openMenuBtn');
+            if (show) { p.classList.remove('panel-hidden'); p.classList.add('panel-visible'); p.style.transform = 'translateX(0)'; p.style.opacity = '1'; btn.classList.add('hidden'); } 
+            else { p.classList.remove('panel-visible'); p.classList.add('panel-hidden'); p.style.transform = 'translateX(-120%)'; p.style.opacity = '0'; btn.classList.remove('hidden'); }
+        }
+        function setTab(tab) {
+            ['visual', 'tools', 'data'].forEach(t => { document.getElementById(`view-${t}`).classList.add('hidden'); document.getElementById(`tab-${t}`).classList.remove('active'); });
+            document.getElementById(`view-${tab}`).classList.remove('hidden'); document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+        function openSettings() { document.getElementById('apiModal').classList.remove('hidden'); }
+        function saveKey() { localStorage.setItem(apiKeyKey, document.getElementById('apiKeyInput').value); alert("Key Saved"); document.getElementById('apiModal').classList.add('hidden'); }
+        function initDraw() {
+            drawnItems = new L.FeatureGroup().addTo(map);
+            const drawControl = new L.Control.Draw({ draw: { polyline: { metric: true, shapeOptions: { color: '#f59e0b' } }, polygon: { showArea: true, shapeOptions: { color: '#10b981' } }, rectangle: { showArea: true, shapeOptions: { color: '#3b82f6' } }, circle: false, marker: false }, edit: { featureGroup: drawnItems } });
+            map.addControl(drawControl);
+            map.on(L.Draw.Event.CREATED, (e) => {
+                const layer = e.layer; drawnItems.addLayer(layer);
+                let val = 0;
+                if(e.layerType === 'polyline') { const lls = layer.getLatLngs(); for(let i=0; i<lls.length-1; i++) val += lls[i].distanceTo(lls[i+1]); }
+                else { const lls = layer.getLatLngs()[0]; for(let i=0; i<lls.length-1; i++) val += lls[i].distanceTo(lls[i+1]); val += lls[lls.length-1].distanceTo(lls[0]); }
+                const ui = document.getElementById('measureFloat'); ui.classList.remove('hidden'); ui.classList.add('flex'); document.getElementById('measureVal').innerText = (val/1000).toFixed(2) + " KM";
+            });
+        }
+        function clearMeasurements() { drawnItems.clearLayers(); if(window.distLine) map.removeLayer(window.distLine); if(window.distMarkers) window.distMarkers.forEach(m => map.removeLayer(m)); document.getElementById('measureFloat').classList.add('hidden'); document.getElementById('distResult').classList.add('hidden'); }
+        async function handleSearch() {
+            const q = document.getElementById('aiSearch').value; if(!q) return;
+            if(q.match(/^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/)) { const p = q.split(',').map(Number); map.setView(p, 16); return; }
+            const key = localStorage.getItem(apiKeyKey); if(!key) return alert("API Key diperlukan.");
             document.getElementById('aiProcessing').style.display = 'flex';
             try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`, {
-                    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ contents: [{parts:[{text: prompt}]}] })
-                });
-                if (!res.ok) throw new Error(`API Error: ${res.status}`);
-                const d = await res.json();
-                if (d.candidates && d.candidates[0].content.parts[0]) {
-                    return d.candidates[0].content.parts[0].text;
-                }
-                return null;
-            } catch(e) {
-                alert("AI Error: " + e.message);
-                return null;
-            } finally {
-                document.getElementById('aiProcessing').style.display = 'none';
-            }
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ contents: [{parts:[{text: `Return JSON coords [lat, lon] for: ${q}`}]}] }) });
+                const d = await res.json(); const coords = JSON.parse(d.candidates[0].content.parts[0].text.replace(/```json|```/g,'').trim()); map.setView(coords, 14);
+            } catch(e) {} finally { document.getElementById('aiProcessing').style.display = 'none'; }
         }
-        
-        async function analyzeLocation(lat, lng) {
-            const prompt = `Analisis lokasi di koordinat ${lat}, ${lng}. Lakukan analisis Klasifikasi Jalan sesuai Undang-Undang No. 22 Tahun 2009 tentang Lalu Lintas dan Angkutan Jalan. 
-            1. Identifikasi nama jalan/daerah.
-            2. Tentukan Fungsi Jalan (Arteri/Kolektor/Lokal).
-            3. Tentukan Status Jalan.
-            4. Analisis kondisi fisik lingkungan sekitar.`;
-            const txt = await callAI(prompt);
-            if (txt) showAIResult(txt);
-        }
-
-        async function analyzeDataPoint(lat, lng, props) {
-            const propStr = JSON.stringify(props, null, 2);
-            const prompt = `Analisis titik data ini:\nKoordinat: ${lat}, ${lng}\nData Tambahan:\n${propStr}\n\nLakukan analisis mendalam:
-            1. Klasifikasi Jalan (UU No. 22/2009) di lokasi ini.
-            2. Hubungkan data tambahan dengan kondisi jalan.
-            3. Berikan rekomendasi keselamatan.`;
-            const txt = await callAI(prompt);
-            if (txt) showAIResult(txt);
-        }
-
-        async function handleAICommand() {
-            const q = document.getElementById('aiCommandInput').value.trim(); if(!q) return;
-
-            const coordRegex = /^(-?\d+(\.\d+)?)[,\s]+(-?\d+(\.\d+)?)$/;
-            const match = q.match(coordRegex);
-            if (match) {
-                const lat = parseFloat(match[1]), lng = parseFloat(match[3]);
-                map.setView([lat, lng], 15);
-                L.popup().setLatLng([lat, lng]).setContent(`<b>📍 Koordinat</b><br>${lat}, ${lng}`).openOn(map);
-                return;
-            }
-
-            const prompt = `User: "${q}". JSON ONLY: { "action": "NAVIGATE"|"FILTER"|"RESET", "lat": num, "lng": num, "zoom": 13, "label": "name", "expr": "JS bool (d.date,d.time,d.lat)" }`;
-            try {
-                const txt = await callAI(prompt);
-                if (!txt) return;
-                const act = JSON.parse(txt.replace(/```json|```/g,'').trim());
-                if(act.action==='NAVIGATE') { map.setView([act.lat,act.lng], 13); L.popup().setLatLng([act.lat,act.lng]).setContent(`📍 ${act.label}`).openOn(map); }
-                else if(act.action==='FILTER') { const f = rawData.filter(new Function('d', `try{return ${act.expr}}catch{return false}`)); if(f.length) { displayData=f; updateUI(); } else alert("0 Data."); }
-                else if(act.action==='RESET') resetFilter();
-            } catch(e) { console.log(e); }
-        }
-        
-        async function askAIGeneral() { 
-            if(!displayData.length) return alert("Data kosong"); 
-            const s = displayData.slice(0,15).map(d=>`${d.lat},${d.lng},${d.time}`).join('\n'); 
-            const prompt = `Berdasarkan sampel data lokasi berikut:\n${s}\nTotal Data: ${displayData.length}.
-            Lakukan analisis Klasifikasi Jalan sesuai Undang-Undang No. 22 Tahun 2009.`;
-            const txt = await callAI(prompt); 
-            if (txt) showAIResult(txt); 
-        }
-        
-        async function askAIArea() { 
-            if(!currentDrawnLayer) return alert("Gambar area dulu."); 
-            const pts = currentDrawnLayer.getLatLngs().toString().substring(0,500);
-            const prompt = `Berdasarkan koordinat area ini: ${pts}...
-            Lakukan analisis Klasifikasi Jalan sesuai UU No. 22 Tahun 2009.`;
-            const txt = await callAI(prompt); 
-            if (txt) showAIResult(txt); 
-        }
-        
-        function showAIResult(txt) {
-            if (!txt) return;
-            document.getElementById('aiOutput').innerHTML = marked.parse(txt);
-            toggleModal('aiModal', true);
-        }
-        function closeAIModal() { toggleModal('aiModal', false); }
-        function setupClick(isHeatmap) {
-            map.off('click');
-        }
-        function toggleMinMax(id, min) { const c = document.getElementById(id); if(min) { c.classList.remove('w-80'); c.classList.add('w-auto'); document.getElementById('mainFullContent').classList.add('hidden'); document.getElementById('mainMiniContent').classList.remove('hidden'); } else { c.classList.remove('w-auto'); c.classList.add('w-80'); document.getElementById('mainMiniContent').classList.add('hidden'); document.getElementById('mainFullContent').classList.remove('hidden'); } }
-        function resetFilter() { displayData=[...rawData]; updateUI(); document.getElementById('aiCommandInput').value=''; }
-        document.getElementById('radiusSlider').addEventListener('input', function() { if (!isUpdatingMap) { requestAnimationFrame(() => { const val = parseInt(this.value); renderLayer(); isUpdatingMap = false; }); isUpdatingMap = true; } });
-        const drawControl = new L.Control.Draw({ draw: { polyline:{metric:true}, polygon:{showArea:true}, rectangle:{showArea:true}, circle:false, marker:false }, edit: { featureGroup: drawnItems } }); map.addControl(drawControl);
-        map.on(L.Draw.Event.CREATED, e => { drawnItems.clearLayers(); drawnItems.addLayer(e.layer); currentDrawnLayer=e.layer; document.getElementById('measurePanel').classList.remove('hidden'); updateMeasure(e.layer); });
-        function updateMeasure(l) { let val=0; if(l.getLatLngs) { const lls = l.getLatLngs().flat(2); for(let i=0; i<lls.length-1; i++) val += lls[i].distanceTo(lls[i+1]); } document.getElementById('measureResult').innerText = (val/1000).toFixed(2); }
-        function clearDrawings() { drawnItems.clearLayers(); currentDrawnLayer=null; document.getElementById('measurePanel').classList.add('hidden'); }
-        let activeDragEl=null, initialX, initialY; const dragOffsets = {'controlContainer':{x:0,y:0}, 'measurePanel':{x:0,y:0}};
-        document.addEventListener("mousedown", e => { let h = e.target.closest('.draggable-header'); if(!h || e.target.closest('button') || e.target.closest('input')) return; const id = h.getAttribute('data-target'); if(id) { activeDragEl = document.getElementById(id); initialX = e.clientX - dragOffsets[id].x; initialY = e.clientY - dragOffsets[id].y; } });
-        document.addEventListener("mouseup", () => activeDragEl=null);
-        document.addEventListener("mousemove", e => { if(activeDragEl) { e.preventDefault(); const x = e.clientX - initialX; const y = e.clientY - initialY; dragOffsets[activeDragEl.id] = {x,y}; activeDragEl.style.transform = `translate3d(${x}px, ${y}px, 0)`; } });
     </script>
 </body>
 </html>
