@@ -78,6 +78,10 @@
         .toast-error { background: rgba(220, 38, 38, 0.9); border-color: rgba(248, 113, 113, 0.3); }
         .toast-success { background: rgba(22, 163, 74, 0.9); border-color: rgba(74, 222, 128, 0.3); }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Route Info Panel Animation */
+        .animate-bounce-in { animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55); }
+        @keyframes bounceIn { 0% { opacity: 0; transform: translateY(-20px); } 100% { opacity: 1; transform: translateY(0); } }
     </style>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -95,11 +99,49 @@
         <div class="loader"></div> <span class="text-xs text-blue-900 font-bold">AI Sedang Menganalisis...</span>
     </div>
 
-    <!-- ROUTING MODAL (NEW) -->
+    <!-- FLOATING ROUTE INFO PANEL (MODIFIED: Draggable & Minimizable) -->
+    <div id="routeInfoPanel" class="fixed top-20 right-4 z-[1000] w-72 glass-panel rounded-xl overflow-hidden shadow-2xl hidden animate-bounce-in">
+        <!-- Header: Draggable Area -->
+        <div class="draggable-header bg-purple-50 p-3 border-b border-purple-100 flex justify-between items-center cursor-grab active:cursor-grabbing" data-target="routeInfoPanel">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-route text-purple-600"></i>
+                <span class="text-xs font-bold text-purple-900 uppercase tracking-wider">Info Rute</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <!-- Minimize Button -->
+                <button onclick="toggleRouteMin()" class="text-slate-400 hover:text-purple-600 w-6 h-6 rounded hover:bg-purple-100 flex items-center justify-center transition-colors" title="Minimize/Maximize">
+                    <i class="fa-solid fa-window-minimize text-xs -mt-1" id="routeMinIcon"></i>
+                </button>
+                <!-- Close Button -->
+                <button onclick="clearRoute()" class="text-slate-400 hover:text-red-500 w-6 h-6 rounded hover:bg-red-50 flex items-center justify-center transition-colors" title="Hapus Rute">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Content Area -->
+        <div id="routeInfoContent" class="p-4 bg-white/50 backdrop-blur-sm transition-all duration-300">
+            <div class="grid grid-cols-2 gap-3 mb-2">
+                <div class="text-center p-2 bg-white border border-purple-100 rounded shadow-sm">
+                    <span class="text-[10px] text-slate-500 font-bold uppercase block mb-0.5">Jarak</span>
+                    <span class="text-lg font-bold text-purple-700" id="floatDist">-</span>
+                </div>
+                <div class="text-center p-2 bg-white border border-purple-100 rounded shadow-sm">
+                    <span class="text-[10px] text-slate-500 font-bold uppercase block mb-0.5">Waktu</span>
+                    <span class="text-lg font-bold text-purple-700" id="floatDur">-</span>
+                </div>
+            </div>
+            <div class="text-[10px] text-center text-slate-400 italic">
+                *Kecepatan: <span id="floatSpeedInfo">standar</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ROUTING MODAL -->
     <div id="routingModal" class="fixed inset-0 bg-black/60 z-[9999] hidden flex items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity duration-300">
         <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300">
             <div class="p-4 border-b border-purple-100 bg-purple-50 flex justify-between items-center">
-                <h3 class="font-bold text-purple-900"><i class="fa-solid fa-route text-purple-600 mr-2"></i> Hitung Jarak Tempuh</h3>
+                <h3 class="font-bold text-purple-900"><i class="fa-solid fa-route text-purple-600 mr-2"></i> Kalkulator Rute</h3>
                 <button onclick="toggleModal('routingModal', false)" class="text-gray-400 hover:text-red-500 transition-colors"><i class="fa-solid fa-times text-xl"></i></button>
             </div>
             <div class="p-5 space-y-4">
@@ -125,7 +167,6 @@
                     </div>
                 </div>
 
-                <!-- ADDED: Speed Input -->
                 <div class="space-y-2">
                     <label class="text-xs font-bold text-slate-500 uppercase">Kecepatan Rata-rata (Opsional)</label>
                     <div class="relative">
@@ -135,22 +176,8 @@
                 </div>
 
                 <button onclick="calculateRoute()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded-lg shadow-md transition-all flex justify-center items-center gap-2">
-                    <i class="fa-solid fa-calculator"></i> Hitung Jarak & Waktu
+                    <i class="fa-solid fa-calculator"></i> Hitung & Tampilkan
                 </button>
-
-                <!-- Result Display -->
-                <div id="routeResult" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-4 mt-4 animate-bounce-in">
-                    <div class="grid grid-cols-2 gap-4 text-center">
-                        <div>
-                            <div class="text-xs text-slate-500 font-bold uppercase">Jarak Tempuh</div>
-                            <div class="text-xl font-bold text-slate-800" id="resDist">-</div>
-                        </div>
-                        <div>
-                            <div class="text-xs text-slate-500 font-bold uppercase">Estimasi Waktu</div>
-                            <div class="text-xl font-bold text-slate-800" id="resDur">-</div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -360,6 +387,7 @@
         let isUpdatingMap = false;
         let pegmanMode = false;
         let routeLayer = null; // Store current route
+        let isRouteMinimized = false;
         
         const defaultStyles = {
             point: { color: '#f97316', radius: 5, opacity: 0.9 },
@@ -436,8 +464,6 @@
             if(!startIn || !endIn) return showToast("Isi kedua titik lokasi!", 'error');
 
             showToast("Mencari rute...", 'info');
-            document.getElementById('resDist').innerText = '...';
-            document.getElementById('resDur').innerText = '...';
 
             try {
                 const start = await geocodeAddress(startIn);
@@ -455,17 +481,30 @@
                 
                 // Logic for custom speed vs default duration
                 let durMin;
+                let speedInfo = "standar (OSRM)";
                 if (!isNaN(speedVal) && speedVal > 0) {
                    // t = s / v.  (km) / (km/h) = hours. * 60 = minutes.
                    durMin = Math.round(((route.distance / 1000) / speedVal) * 60);
+                   speedInfo = `${speedVal} km/jam`;
                 } else {
                    durMin = Math.round(route.duration / 60);
                 }
                 
-                // Update UI
-                document.getElementById('resDist').innerText = `${distKm} km`;
-                document.getElementById('resDur').innerText = `${durMin} menit`;
-                document.getElementById('routeResult').classList.remove('hidden');
+                // Update Floating Panel
+                document.getElementById('floatDist').innerText = `${distKm} km`;
+                document.getElementById('floatDur').innerText = `${durMin} menit`;
+                document.getElementById('floatSpeedInfo').innerText = speedInfo;
+                
+                // Reset minimized state
+                isRouteMinimized = false;
+                document.getElementById('routeInfoContent').classList.remove('hidden');
+                document.getElementById('routeMinIcon').className = 'fa-solid fa-window-minimize text-xs -mt-1';
+                
+                // Show panel
+                document.getElementById('routeInfoPanel').classList.remove('hidden');
+
+                // Close Modal
+                toggleModal('routingModal', false);
 
                 // Draw on Map
                 if(routeLayer) map.removeLayer(routeLayer);
@@ -485,10 +524,33 @@
 
                 map.fitBounds(L.geoJSON(geoJson).getBounds(), { padding: [50, 50] });
                 showToast("Rute ditemukan!", 'success');
-                toggleModal('routingModal', false); // Optional: close modal to see map
 
             } catch(e) {
                 showToast(e.message || "Gagal memproses permintaan", 'error');
+            }
+        }
+
+        function clearRoute() {
+            if(routeLayer) {
+                map.removeLayer(routeLayer);
+                routeLayer = null;
+            }
+            document.getElementById('routeInfoPanel').classList.add('hidden');
+            showToast("Rute dihapus", 'info');
+        }
+
+        function toggleRouteMin() {
+            const content = document.getElementById('routeInfoContent');
+            const icon = document.getElementById('routeMinIcon');
+            
+            isRouteMinimized = !isRouteMinimized;
+            
+            if (isRouteMinimized) {
+                content.classList.add('hidden');
+                icon.className = 'fa-regular fa-window-maximize text-xs';
+            } else {
+                content.classList.remove('hidden');
+                icon.className = 'fa-solid fa-window-minimize text-xs -mt-1';
             }
         }
 
@@ -553,9 +615,14 @@
                                     <button onclick="analyzeLocation(${lat}, ${lng})" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 px-2 rounded shadow flex items-center justify-center gap-1">
                                         <i class="fa-solid fa-robot"></i> Analisis AI
                                     </button>
-                                    <button onclick="setRoutePoint('${lat},${lng}')" class="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-1.5 px-2 rounded shadow flex items-center justify-center gap-1">
-                                        <i class="fa-solid fa-route"></i> Rute ke sini
-                                    </button>
+                                    <div class="flex gap-1">
+                                        <button onclick="setRouteStart('${lat},${lng}')" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-700 text-[10px] font-bold py-1.5 px-1 rounded shadow text-center">
+                                            Set Mulai (A)
+                                        </button>
+                                        <button onclick="setRouteEnd('${lat},${lng}')" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold py-1.5 px-1 rounded shadow text-center">
+                                            Set Tujuan (B)
+                                        </button>
+                                    </div>
                                     <a href="https://www.google.com/maps?q=&layer=c&cbll=${e.latlng.lat},${e.latlng.lng}" target="_blank" class="w-full bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-1.5 px-2 rounded shadow flex items-center justify-center gap-1 no-underline">
                                         <i class="fa-solid fa-street-view"></i> Street View
                                     </a>
@@ -567,8 +634,15 @@
             });
         });
 
-        function setRoutePoint(coords) {
+        function setRouteStart(coords) {
+            document.getElementById('routeStart').value = coords;
+            showToast("Titik A (Asal) ditetapkan!", 'success');
+        }
+
+        function setRouteEnd(coords) {
             document.getElementById('routeEnd').value = coords;
+            showToast("Titik B (Tujuan) ditetapkan!", 'success');
+            // Optional: Open modal immediately to let user calculate
             toggleModal('routingModal', true);
         }
 
@@ -963,7 +1037,8 @@
         map.on(L.Draw.Event.CREATED, e => { drawnItems.clearLayers(); drawnItems.addLayer(e.layer); currentDrawnLayer=e.layer; document.getElementById('measurePanel').classList.remove('hidden'); updateMeasure(e.layer); });
         function updateMeasure(l) { let val=0; if(l.getLatLngs) { const lls = l.getLatLngs().flat(2); for(let i=0; i<lls.length-1; i++) val += lls[i].distanceTo(lls[i+1]); } document.getElementById('measureResult').innerText = (val/1000).toFixed(2); }
         function clearDrawings() { drawnItems.clearLayers(); currentDrawnLayer=null; document.getElementById('measurePanel').classList.add('hidden'); }
-        let activeDragEl=null, initialX, initialY; const dragOffsets = {'controlContainer':{x:0,y:0}, 'measurePanel':{x:0,y:0}};
+        let activeDragEl=null, initialX, initialY; 
+        const dragOffsets = {'controlContainer':{x:0,y:0}, 'measurePanel':{x:0,y:0}, 'routeInfoPanel':{x:0,y:0}}; // Added routeInfoPanel
         document.addEventListener("mousedown", e => { let h = e.target.closest('.draggable-header'); if(!h || e.target.closest('button') || e.target.closest('input')) return; const id = h.getAttribute('data-target'); if(id) { activeDragEl = document.getElementById(id); initialX = e.clientX - dragOffsets[id].x; initialY = e.clientY - dragOffsets[id].y; } });
         document.addEventListener("mouseup", () => activeDragEl=null);
         document.addEventListener("mousemove", e => { if(activeDragEl) { e.preventDefault(); const x = e.clientX - initialX; const y = e.clientY - initialY; dragOffsets[activeDragEl.id] = {x,y}; activeDragEl.style.transform = `translate3d(${x}px, ${y}px, 0)`; } });
