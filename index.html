@@ -227,7 +227,7 @@
                 <div class="data-table-container flex-1 custom-scrollbar">
                     <table class="data-table" id="mainDataTable"></table>
                 </div>
-                <p class="text-[10px] text-slate-400 mt-2 text-center italic">Hanya menampilkan 100 baris pertama untuk performa.</p>
+                <div id="tableFooter" class="mt-2 text-center"></div>
             </div>
         </div>
     </div>
@@ -343,6 +343,8 @@
         let pegmanMode = false;
         let routeLayer = null; // Store current route
         let isRouteMinimized = false;
+        let currentPage = 1;
+        const itemsPerPage = 50; // Ringan: 50 baris per halaman
         
         const defaultStyles = {
             point: { color: '#f97316', radius: 5, opacity: 0.9 },
@@ -659,21 +661,35 @@
             displayData=[...rawData]; map.fitBounds(L.latLngBounds(rawData.map(d=>[d.lat,d.lng]))); updateUI(); toggleModal('dataEntryModal', false);
         }
 
-        function openDataManager() {
+        function openDataManager(page) {
+            if (typeof page === 'number') currentPage = page;
             toggleModal('dataManagerModal', true);
             const table = document.getElementById('mainDataTable');
             table.innerHTML = '';
             document.getElementById('managerCount').innerText = rawData.length;
-            if(rawData.length === 0) return;
+            
+            if(rawData.length === 0) {
+                document.getElementById('tableFooter').innerHTML = '<span class="text-slate-400 italic">Tidak ada data.</span>';
+                return;
+            }
+
             const headers = Object.keys(rawData[0].props);
             let thead = '<thead><tr><th class="w-10">#</th>';
             headers.forEach(h => thead += `<th>${h}</th>`);
             thead += '<th class="w-10 text-center">Aksi</th></tr></thead>';
             table.innerHTML = thead;
+            
             let tbody = '<tbody>';
-            // Limit table display to avoid crashing DOM with 50k rows
-            const limit = Math.min(rawData.length, 100);
-            for(let i=0; i<limit; i++) {
+            
+            // PAGINATION LOGIC (Ringan)
+            const totalPages = Math.ceil(rawData.length / itemsPerPage);
+            if (currentPage < 1) currentPage = 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = Math.min(start + itemsPerPage, rawData.length);
+            
+            for(let i=start; i<end; i++) {
                 const d = rawData[i];
                 tbody += `<tr class="hover:bg-blue-50 cursor-pointer transition-colors" onclick="zoomToData(${i})" title="Klik untuk lihat di peta"><td class="text-gray-400 text-xs">${i+1}</td>`;
                 headers.forEach(h => {
@@ -686,6 +702,16 @@
             }
             tbody += '</tbody>';
             table.innerHTML += tbody;
+
+            // RENDER PAGINATION CONTROLS
+            const footer = document.getElementById('tableFooter');
+            footer.innerHTML = `
+                <div class="flex justify-center items-center gap-4">
+                    <button onclick="openDataManager(${currentPage - 1})" ${currentPage === 1 ? 'disabled class="text-slate-300 cursor-not-allowed"' : 'class="text-blue-600 hover:text-blue-800 font-bold"'}><i class="fa-solid fa-chevron-left"></i> Prev</button>
+                    <span class="text-xs font-bold text-slate-600">Hal ${currentPage} / ${totalPages}</span>
+                    <button onclick="openDataManager(${currentPage + 1})" ${currentPage === totalPages ? 'disabled class="text-slate-300 cursor-not-allowed"' : 'class="text-blue-600 hover:text-blue-800 font-bold"'} >Next <i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+            `;
         }
 
         function zoomToData(index) {
@@ -701,8 +727,8 @@
             L.popup().setLatLng([d.lat, d.lng]).setContent(content).openOn(map);
         }
 
-        function deleteRow(i) { if(confirm("Hapus?")) { rawData.splice(i,1); displayData=[...rawData]; openDataManager(); updateUI(); } }
-        function clearAllData() { if(confirm("Hapus SEMUA?")) { rawData=[]; displayData=[]; openDataManager(); updateUI(); } }
+        function deleteRow(i) { if(confirm("Hapus?")) { rawData.splice(i,1); displayData=[...rawData]; openDataManager(currentPage); updateUI(); } }
+        function clearAllData() { if(confirm("Hapus SEMUA?")) { rawData=[]; displayData=[]; openDataManager(1); updateUI(); } }
         function updateUI() { document.getElementById('dataCount').innerText = `${displayData.length} Data`; renderLayer(); }
 
         // --- RENDER ---
