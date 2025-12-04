@@ -292,6 +292,8 @@
                         <button id="setRouteAbtn" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-700 text-[10px] font-bold py-1.5 px-1 rounded shadow text-center">Set Mulai (A)</button>
                         <button id="setRouteBbtn" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold py-1.5 px-1 rounded shadow text-center">Set Tujuan (B)</button>
                     </div>
+                    <!-- Tombol Reset Aksi Peta -->
+                    <button onclick="resetMapClickActions()" class="w-full text-[10px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 py-1 rounded">Reset Aksi Peta</button>
                 </div>
 
                 <!-- Map Mode Info -->
@@ -361,7 +363,8 @@
         let routeLayer = null; // Store current route
         let isRouteMinimized = false;
         let currentPage = 1;
-        const itemsPerPage = 50; // Ringan: 50 baris per halaman
+        // NILAI itemsPerPage DIUBAH DARI 20 (asumsi sebelumnya) MENJADI 50
+        const itemsPerPage = 50; 
         
         const defaultStyles = {
             point: { color: '#f97316', radius: 5, opacity: 0.9 },
@@ -549,6 +552,16 @@
             document.getElementById('setRouteBbtn').setAttribute('onclick', `setRouteEnd('${coords}')`);
         }
 
+        /**
+         * Hides the map click actions menu. Added per user request to clean up menu.
+         */
+        function resetMapClickActions() {
+            document.getElementById('mapClickActions').classList.add('hidden');
+            document.getElementById('clickedCoords').innerText = '';
+            // Optional: Close any open popups on the map
+            map.closePopup();
+        }
+
         // --- DOM LOAD ---
         document.addEventListener('DOMContentLoaded', () => {
             const savedKey = localStorage.getItem('gemini_api_key') || "";
@@ -639,7 +652,7 @@
             else {
                 activeLayer.eachLayer(layer => {
                      if (mode === 'circle') { if (layer.setRadius) layer.setRadius(cf.radiusScale); if (layer.setStyle) layer.setStyle({ color: cf.color, opacity: cf.opacity }); }
-                    else if (mode === 'line') { if (layer instanceof L.Polyline && !(layer instanceof L.CircleMarker)) layer.setStyle({ color: cf.color, weight: cf.weight, opacity: cf.opacity }); }
+                    else if (layer instanceof L.Polyline && !(layer instanceof L.CircleMarker)) layer.setStyle({ color: cf.color, weight: cf.weight, opacity: cf.opacity });
                 });
             }
         }
@@ -812,9 +825,9 @@
                     gradient: { 0.0: 'navy', 0.3: 'blue', 0.5: 'lime', 0.7: 'yellow', 1.0: 'red' }
                 }).addTo(map);
             } else if(mode === 'point') {
-                // CLUSTERING MODE FOR BIG DATA
+                // CLUSTERING MODE FOR BIG DATA (Disarankan untuk 100.000 data)
                 activeLayer = L.markerClusterGroup({
-                    chunkedLoading: true, // Prevents browser freeze
+                    chunkedLoading: true, // PENTING: Mencegah browser freeze saat memproses banyak data
                     maxClusterRadius: 50,
                     spiderfyOnMaxZoom: true,
                     showCoverageOnHover: false,
@@ -843,6 +856,7 @@
                 activeLayer.addLayers(markers);
                 map.addLayer(activeLayer);
             } else if(mode === 'line') {
+                // Mode Jalur: Bisa sangat berat untuk 100.000 titik. Filter data disarankan!
                 activeLayer = L.featureGroup();
                 const latlngs = displayData.map(d => [d.lat, d.lng]);
                 L.polyline(latlngs, { color: cf.color, weight: cf.weight, opacity: cf.opacity }).addTo(activeLayer);
@@ -850,7 +864,7 @@
             } else {
                 // Circle mode (Standard Limit to prevent crash)
                 activeLayer = L.featureGroup();
-                const limit = Math.min(displayData.length, 2000); // Keep limit for non-optimized modes
+                const limit = Math.min(displayData.length, 2000); // Batasan aman untuk mode non-optimized
                 for(let i=0; i<limit; i++) {
                     const d = displayData[i];
                     let m = L.circle([d.lat,d.lng], {radius: cf.radiusScale, color: cf.color, weight:1, opacity: cf.opacity});
