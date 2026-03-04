@@ -600,7 +600,8 @@
         }
 
         // --- FUNCTIONS ---
-        function getApiKey() { return localStorage.getItem('gemini_api_key') || ""; }
+        // Kosongkan agar sesuai API sistem internal
+        function getApiKey() { return ""; }
         function saveApiKey() { const key = document.getElementById('apiKeyInput').value.trim(); if(key) { localStorage.setItem('gemini_api_key', key); showToast("API Key tersimpan!", 'success'); } }
         function toggleApiKeyVisibility() { const input = document.getElementById('apiKeyInput'); const icon = document.getElementById('eyeIcon'); if(input.type === 'password') { input.type='text'; icon.className='fa-solid fa-eye-slash'; } else { input.type='password'; icon.className='fa-solid fa-eye'; } }
 
@@ -686,17 +687,38 @@
             let newData = [];
             if (json.length === 0) { showToast("File kosong atau tidak dapat dibaca.", 'error'); resetUpload(); return; }
 
-            let latKey, lonKey;
+            let latKey, lonKey, combinedKey;
             const keys = Object.keys(json[0] || {});
-            keys.forEach(k => { const l = k.toLowerCase(); if(l.includes('lat')) latKey=k; else if(l.includes('lon')||l.includes('lng')) lonKey=k; });
-            let combinedKey = null;
-            if (!latKey || !lonKey) { keys.forEach(k => { const val = json[0][k]; if (typeof val === 'string' && val.trim().match(/^(-?\d+(\.\d+)?)\s+-?\d+(\.\d+)?$/)) combinedKey = k; }); }
+            
+            // Cek kolom yang mengandung Lat dan Long sekaligus (seperti "Lat, Long Start")
+            combinedKey = keys.find(k => k.toLowerCase().includes('lat') && (k.toLowerCase().includes('lon') || k.toLowerCase().includes('lng')));
+
+            if (!combinedKey) {
+                latKey = keys.find(k => k.toLowerCase() === 'lat' || k.toLowerCase() === 'latitude' || (k.toLowerCase().includes('lat') && !k.toLowerCase().includes('lon')));
+                lonKey = keys.find(k => k.toLowerCase() === 'lon' || k.toLowerCase() === 'lng' || k.toLowerCase() === 'longitude' || k.toLowerCase().includes('lon') || k.toLowerCase().includes('lng'));
+            }
+
+            // Fallback: Cek regex dari isi data jika header tidak baku
+            if (!latKey && !lonKey && !combinedKey) { 
+                combinedKey = keys.find(k => { 
+                    const val = json[0][k]; 
+                    return typeof val === 'string' && val.trim().match(/^-?\d+(\.\d+)?\s*[,;]?\s*-?\d+(\.\d+)?$/); 
+                }); 
+            }
+
             if(!latKey && !lonKey && !combinedKey) return showToast("Kolom Latitude/Longitude tidak ditemukan.", 'error');
 
             json.forEach(row => {
                 let lat, lng;
-                if (combinedKey) { const parts = row[combinedKey].toString().trim().split(/[\s,;]+/); if(parts.length >= 2) { lat = parseFloat(parts[0]); lng = parseFloat(parts[1]); } } 
-                else { lat = parseFloat(row[latKey]); lng = parseFloat(row[lonKey]); }
+                if (combinedKey && row[combinedKey]) { 
+                    // Split berdasarkan koma, titik koma, atau spasi
+                    const parts = row[combinedKey].toString().replace(/['"]/g, '').trim().split(/\s*[,;]\s*|\s+/); 
+                    if(parts.length >= 2) { lat = parseFloat(parts[0]); lng = parseFloat(parts[1]); } 
+                } 
+                else { 
+                    lat = parseFloat(row[latKey]); lng = parseFloat(row[lonKey]); 
+                }
+                
                 if(!isNaN(lat) && !isNaN(lng)) { newData.push({ lat: lat, lng: lng, props: row }); }
             });
 
@@ -736,6 +758,8 @@
 
             const headers = Object.keys(rawData[0].props);
             let thead = '<thead><tr><th class="w-10">#</th>';
+            headers.forEach(h => { if(h !== 'lat' && h !== 'lng') thead += `<th>${h}</th>` }); // Hide lat/lng if not needed, but keep generic for now
+            thead = '<thead><tr><th class="w-10">#</th>';
             headers.forEach(h => thead += `<th>${h}</th>`);
             thead += '<th class="w-10 text-center">Aksi</th></tr></thead>';
             table.innerHTML = thead;
@@ -934,21 +958,16 @@
         }
 
         // --- AI & MISC ---
+        const apiKey = ""; // Diset kosong untuk inject sistem otomatis jika dipakai di canvas.
 
-        /**
-         * Generic AI caller with simple retry and structured JSON support.
-         * @param {string|object} promptOrPayload - String prompt for text or structured payload object.
-         * @param {boolean} isStructured - True if payload already contains generationConfig for JSON output.
-         */
         async function callAI(promptOrPayload, isStructured = false) {
-            const key = getApiKey();
-            if(!key) { showToast("API Key Needed! Buka Pengaturan.", 'error'); return null; }
+            // Kita bypass validasi lokal karena key disediakan dari runtime environment
+            const key = apiKey || "ENV_KEY"; 
             document.getElementById('aiProcessing').style.display = 'flex';
             
             let payload = promptOrPayload;
             if (!isStructured) {
                 payload = { contents: [{parts:[{text: promptOrPayload}]}] };
-                // Use search grounding for general analysis
                 if (!promptOrPayload.includes("Analisis titik:")) {
                     payload.tools = [{ "google_search": {} }];
                 }
@@ -965,8 +984,6 @@
                     });
 
                     if (!res.ok) {
-                        const errorText = await res.text();
-                        console.error("API Fetch Error:", errorText);
                         throw new Error(`API Error: ${res.status}`);
                     }
                     
@@ -981,7 +998,7 @@
                         const delay = Math.pow(2, attempt) * 1000;
                         await new Promise(resolve => setTimeout(resolve, delay)); 
                     } else {
-                        showToast("AI Error: " + e.message, 'error'); 
+                        showToast("AI Error: Pastikan layanan AI tersedia.", 'error'); 
                         return null;
                     }
                 }
@@ -1142,6 +1159,7 @@
         function closeAIModal() { toggleModal('aiModal', false); }
         function toggleMinMax(id, min) { const c = document.getElementById(id); if(min) { c.classList.remove('w-80'); c.classList.add('w-auto'); document.getElementById('mainFullContent').classList.add('hidden'); document.getElementById('mainMiniContent').classList.remove('hidden'); } else { c.classList.remove('w-auto'); c.classList.add('w-80'); document.getElementById('mainMiniContent').classList.add('hidden'); document.getElementById('mainFullContent').classList.remove('hidden'); } }
         function resetFilter() { displayData=[...rawData]; updateUI(); document.getElementById('aiCommandInput').value=''; showToast("Filter dihapus, semua data ditampilkan.", 'info'); }
+        
         const drawControl = new L.Control.Draw({ draw: { polyline:{metric:true}, polygon:{showArea:true}, rectangle:{showArea:true}, circle:false, marker:false }, edit: { featureGroup: drawnItems } }); map.addControl(drawControl);
         map.on(L.Draw.Event.CREATED, e => { drawnItems.clearLayers(); drawnItems.addLayer(e.layer); currentDrawnLayer=e.layer; document.getElementById('measurePanel').classList.remove('hidden'); updateMeasure(e.layer); });
         map.on(L.Draw.Event.EDITED, e => { e.layers.eachLayer(l => updateMeasure(l)); });
