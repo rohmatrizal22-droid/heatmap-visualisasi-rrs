@@ -246,7 +246,6 @@
     <!-- MAIN CONTROL PANEL -->
     <div id="controlContainer" class="absolute top-4 left-14 z-[1000] w-80 transition-all duration-300">
         <div id="mainFullContent" class="glass-panel p-4 rounded-xl overflow-hidden">
-            <!-- HEADER DIUBAH DARI 'DASHBOARD SATELIT' KE 'VISUAL SATELIT' -->
             <div class="draggable-header text-sm font-bold text-blue-900 mb-3 border-b border-blue-100 pb-2 flex justify-between items-center" data-target="controlContainer">
                 <div class="flex items-center gap-2"><i class="fa-solid fa-earth-asia text-blue-600"></i> Visual Satelit</div>
                 <div class="flex gap-1">
@@ -292,7 +291,6 @@
                         <button id="setRouteAbtn" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-700 text-[10px] font-bold py-1.5 px-1 rounded shadow text-center">Set Mulai (A)</button>
                         <button id="setRouteBbtn" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold py-1.5 px-1 rounded shadow text-center">Set Tujuan (B)</button>
                     </div>
-                    <!-- Tombol Reset Aksi Peta -->
                     <button onclick="resetMapClickActions()" class="w-full text-[10px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 py-1 rounded">Reset Aksi Peta</button>
                 </div>
 
@@ -348,9 +346,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-    <!-- Tambahkan GeometryUtil untuk perhitungan Area Poligon -->
     <script src="https://unpkg.com/leaflet-geometryutil@0.10.1/leaflet.geometryutil.js"></script>
-    <!-- MARKER CLUSTER JS -->
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -360,10 +356,9 @@
         let rawData = [], displayData = [], activeLayer = null, currentDrawnLayer = null;
         let isUpdatingMap = false;
         let pegmanMode = false;
-        let routeLayer = null; // Store current route
+        let routeLayer = null; 
         let isRouteMinimized = false;
         let currentPage = 1;
-        // NILAI itemsPerPage DIUBAH DARI 20 (asumsi sebelumnya) MENJADI 50
         const itemsPerPage = 50; 
         
         const defaultStyles = {
@@ -378,7 +373,6 @@
         const map = L.map('map', {center: [-6.200, 106.816], zoom: 11, zoomControl: false, preferCanvas: true});
         L.control.zoom({position: 'bottomright'}).addTo(map);
 
-        // HTTPS Google Maps Layers
         const baseLayers = {
             'google_road': L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'] }),
             'google_sat': L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'] }), 
@@ -392,13 +386,10 @@
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             toast.className = `toast ${type === 'error' ? 'toast-error' : type === 'success' ? 'toast-success' : ''}`;
-            
             let icon = '<i class="fa-solid fa-circle-info text-blue-400"></i>';
             if(type === 'error') icon = '<i class="fa-solid fa-triangle-exclamation text-red-200"></i>';
             if(type === 'success') icon = '<i class="fa-solid fa-circle-check text-green-200"></i>';
-            
             toast.innerHTML = `${icon}<span>${message}</span>`;
-            
             container.appendChild(toast);
             setTimeout(() => {
                 toast.style.opacity = '0';
@@ -407,7 +398,7 @@
             }, 3000);
         }
 
-        // --- ROUTING LOGIC (OSRM & NOMINATIM) ---
+        // --- ROUTING LOGIC ---
         function swapRouteInputs() {
             const a = document.getElementById('routeStart');
             const b = document.getElementById('routeEnd');
@@ -429,20 +420,15 @@
             const startIn = document.getElementById('routeStart').value;
             const endIn = document.getElementById('routeEnd').value;
             const speedVal = parseFloat(document.getElementById('routeSpeed').value);
-
             if(!startIn || !endIn) return showToast("Isi kedua titik lokasi!", 'error');
             showToast("Mencari rute...", 'info');
-
             try {
                 const start = await geocodeAddress(startIn);
                 const end = await geocodeAddress(endIn);
-
                 const url = `https://router.project-osrm.org/route/v1/driving/${start.lon},${start.lat};${end.lon},${end.lat}?overview=full&geometries=geojson`;
                 const res = await fetch(url);
                 const data = await res.json();
-
                 if(data.code !== 'Ok') throw new Error("Gagal menghitung rute");
-
                 const route = data.routes[0];
                 const distKm = (route.distance / 1000).toFixed(2);
                 let durMin, speedInfo = "standar (OSRM)";
@@ -452,26 +438,21 @@
                 } else {
                    durMin = Math.round(route.duration / 60);
                 }
-                
                 document.getElementById('floatDist').innerText = `${distKm} km`;
                 document.getElementById('floatDur').innerText = `${durMin} menit`;
                 document.getElementById('floatSpeedInfo').innerText = speedInfo;
-                
                 isRouteMinimized = false;
                 document.getElementById('routeInfoContent').classList.remove('hidden');
                 document.getElementById('routeMinIcon').className = 'fa-solid fa-window-minimize text-xs -mt-1';
                 document.getElementById('routeInfoPanel').classList.remove('hidden');
                 toggleModal('routingModal', false);
-
                 if(routeLayer) map.removeLayer(routeLayer);
-                
                 const geoJson = { "type": "FeatureCollection", "features": [{ "type": "Feature", "properties": {}, "geometry": route.geometry }] };
                 routeLayer = L.layerGroup([
                     L.geoJSON(geoJson, { style: { color: '#9333ea', weight: 5, opacity: 0.8 } }),
                     L.marker([start.lat, start.lon]).bindPopup('<b>Mulai</b><br>' + startIn),
                     L.marker([end.lat, end.lon]).bindPopup('<b>Tujuan</b><br>' + endIn)
                 ]).addTo(map);
-
                 map.fitBounds(L.geoJSON(geoJson).getBounds(), { padding: [50, 50] });
                 showToast("Rute ditemukan!", 'success');
             } catch(e) { showToast(e.message || "Gagal memproses permintaan", 'error'); }
@@ -527,63 +508,41 @@
         window.setRouteStart = setRouteStart;
         window.setRouteEnd = setRouteEnd;
 
-        /**
-         * Creates the HTML content for the default map click popup (Non-Pegman mode).
-         * SIMPLIFIED: Only shows coordinates. Actions are moved to the menu.
-         */
         function createMapClickPopup(lat, lng) {
             return `<div class="text-center font-sans p-1 min-w-[150px]"><b class="text-blue-900">Lokasi Dipilih</b><br><span class="text-xs text-slate-500">${lat}, ${lng}</span></div>`;
         }
 
-        /**
-         * Updates the action panel in the main menu with the clicked coordinates.
-         */
         function updateMapClickActions(lat, lng) {
             const coords = `${lat}, ${lng}`;
             const mapClickActionsDiv = document.getElementById('mapClickActions');
-
             mapClickActionsDiv.classList.remove('hidden');
             document.getElementById('clickedCoords').innerText = coords;
-
-            // Update button actions with current coordinates
             document.getElementById('analyzeAiBtn').setAttribute('onclick', `analyzeLocation(${lat}, ${lng})`);
             document.getElementById('streetViewBtn').setAttribute('href', `https://www.google.com/maps?q=&layer=c&cbll=${lat},${lng}`);
             document.getElementById('setRouteAbtn').setAttribute('onclick', `setRouteStart('${coords}')`);
             document.getElementById('setRouteBbtn').setAttribute('onclick', `setRouteEnd('${coords}')`);
         }
 
-        /**
-         * Hides the map click actions menu. Added per user request to clean up menu.
-         */
         function resetMapClickActions() {
             document.getElementById('mapClickActions').classList.add('hidden');
             document.getElementById('clickedCoords').innerText = '';
-            // Optional: Close any open popups on the map
             map.closePopup();
         }
 
-        // --- DOM LOAD ---
         document.addEventListener('DOMContentLoaded', () => {
             const savedKey = localStorage.getItem('gemini_api_key') || "";
             const keyInput = document.getElementById('apiKeyInput');
             if(keyInput) keyInput.value = savedKey;
-            
             map.on('click', function(e) {
-                // Check if a drawing control tooltip is visible (meaning a drawing operation is active)
                 if(document.querySelector('.leaflet-draw-tooltip')) return;
-                
                 const lat = e.latlng.lat.toFixed(6);
                 const lng = e.latlng.lng.toFixed(6);
-
                 if (pegmanMode) {
-                    // Street View Mode: Open SV in a new tab
                     const svUrl = `https://www.google.com/maps?q=&layer=c&cbll=${e.latlng.lat},${e.latlng.lng}`;
                     window.open(svUrl, '_blank');
                 } else {
-                    // Normal Mode: Show detailed context menu popup
                     const content = createMapClickPopup(lat, lng);
                     L.popup().setLatLng(e.latlng).setContent(content).openOn(map);
-                    // Update actions in the menu
                     updateMapClickActions(lat, lng);
                 }
             });
@@ -600,12 +559,11 @@
         }
 
         // --- FUNCTIONS ---
-        // Kosongkan agar sesuai API sistem internal
         function getApiKey() { return ""; }
         function saveApiKey() { const key = document.getElementById('apiKeyInput').value.trim(); if(key) { localStorage.setItem('gemini_api_key', key); showToast("API Key tersimpan!", 'success'); } }
         function toggleApiKeyVisibility() { const input = document.getElementById('apiKeyInput'); const icon = document.getElementById('eyeIcon'); if(input.type === 'password') { input.type='text'; icon.className='fa-solid fa-eye-slash'; } else { input.type='password'; icon.className='fa-solid fa-eye'; } }
-
         function openSettings() { toggleModal('settingsModal', true); switchStyleTab('point'); }
+
         function switchStyleTab(mode) {
             document.querySelectorAll('.style-tab').forEach(b => { b.classList.remove('setting-tab-active'); b.classList.add('text-slate-500', 'hover:bg-white'); });
             document.getElementById('tab-'+mode).classList.add('setting-tab-active');
@@ -628,8 +586,7 @@
                 <div class="bg-blue-50 p-4 rounded-lg border border-blue-100"><label class="text-xs font-bold text-blue-800 block mb-2">Transparansi (<span id="label-${mode}-opacity">${cf.opacity}</span>)</label><input type="range" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" min="0.1" max="1" step="0.1" value="${cf.opacity}" oninput="updateConfig('${mode}', 'opacity', this.value)"></div>`;
             if(mode === 'heatmap') {
                  html = `<div class="bg-blue-50 p-4 rounded-lg border border-blue-100"><label class="text-xs font-bold text-blue-800 block mb-2">Kepadatan (<span id="label-${mode}-max">${cf.max}</span>)</label><input type="range" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" min="0.1" max="10" step="0.1" value="${cf.max}" oninput="updateConfig('${mode}', 'max', this.value)"></div><div class="bg-blue-50 p-4 rounded-lg border border-blue-100"><label class="text-xs font-bold text-blue-800 block mb-2">Radius (<span id="label-${mode}-radius">${cf.radius}</span>px)</label><input type="range" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" min="5" max="100" value="${cf.radius}" oninput="updateConfig('${mode}', 'radius', this.value)"></div>`;
-            }
-            else if(mode === 'point') html += `<div class="bg-blue-50 p-4 rounded-lg border border-blue-100"><label class="text-xs font-bold text-blue-800 block mb-2">Ukuran (<span id="label-${mode}-radius">${cf.radius}</span>px)</label><input type="range" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" min="2" max="20" value="${cf.radius}" oninput="updateConfig('${mode}', 'radius', this.value)"></div>`;
+            } else if(mode === 'point') html += `<div class="bg-blue-50 p-4 rounded-lg border border-blue-100"><label class="text-xs font-bold text-blue-800 block mb-2">Ukuran (<span id="label-${mode}-radius">${cf.radius}</span>px)</label><input type="range" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" min="2" max="20" value="${cf.radius}" oninput="updateConfig('${mode}', 'radius', this.value)"></div>`;
             else if(mode === 'circle') html += `<div class="bg-blue-50 p-4 rounded-lg border border-blue-100"><label class="text-xs font-bold text-blue-800 block mb-2">Skala (<span id="label-${mode}-radiusScale">${cf.radiusScale}</span>x)</label><input type="range" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" min="5" max="100" value="${cf.radiusScale}" oninput="updateConfig('${mode}', 'radiusScale', this.value)"></div>`;
             else if(mode === 'line') html += `<div class="bg-blue-50 p-4 rounded-lg border border-blue-100"><label class="text-xs font-bold text-blue-800 block mb-2">Tebal (<span id="label-${mode}-weight">${cf.weight}</span>px)</label><input type="range" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer" min="1" max="10" value="${cf.weight}" oninput="updateConfig('${mode}', 'weight', this.value)"></div>`;
             c.innerHTML = html;
@@ -647,9 +604,6 @@
             if (document.getElementById('viewMode').value !== mode || !activeLayer) return;
             const cf = styleConfig[mode];
             if (mode === 'heatmap') { activeLayer.setOptions({ radius: cf.radius, blur: cf.blur, max: cf.max }); } 
-            else if (mode === 'point') { 
-                // Cluster style update is tricky, easier to re-render or just let it be for now
-            }
             else {
                 activeLayer.eachLayer(layer => {
                      if (mode === 'circle') { if (layer.setRadius) layer.setRadius(cf.radiusScale); if (layer.setStyle) layer.setStyle({ color: cf.color, opacity: cf.opacity }); }
@@ -658,7 +612,6 @@
             }
         }
 
-        function applyStyles() { renderLayer(); toggleModal('settingsModal', false); }
         function resetStyles() { styleConfig = JSON.parse(JSON.stringify(defaultStyles)); const t = document.querySelector('.setting-tab-active').id.replace('tab-', ''); if(t!=='api') renderStyleControls(t); renderLayer(); }
 
         // --- DATA ---
@@ -686,30 +639,22 @@
         function processData(json) {
             let newData = [];
             if (json.length === 0) { showToast("File kosong atau tidak dapat dibaca.", 'error'); resetUpload(); return; }
-
             let latKey, lonKey, combinedKey;
             const keys = Object.keys(json[0] || {});
-            
-            // Cek kolom gabungan ("Lat, Long Start")
             combinedKey = keys.find(k => {
                 const kl = k.toLowerCase();
                 return kl.includes('lat') && (kl.includes('lon') || kl.includes('lng')) && kl.includes(',');
             });
-
-            // Cek kolom terpisah ("Latitude", "Longitude")
             if (!combinedKey) {
                 latKey = keys.find(k => k.toLowerCase() === 'lat' || k.toLowerCase() === 'latitude' || k.toLowerCase().startsWith('lat'));
                 lonKey = keys.find(k => k.toLowerCase() === 'lon' || k.toLowerCase() === 'lng' || k.toLowerCase() === 'longitude' || k.toLowerCase().startsWith('lon') || k.toLowerCase().startsWith('lng'));
             }
-
-            // Fallback: deteksi isi baris pertama jika header tidak baku
             if (!latKey && !lonKey && !combinedKey) { 
                 combinedKey = keys.find(k => { 
                     const val = json[0][k]; 
                     return typeof val === 'string' && val.trim().match(/^-?\d+(\.\d+)?\s*[,;]?\s*-?\d+(\.\d+)?$/); 
                 }); 
             }
-
             if(!latKey && !lonKey && !combinedKey) return showToast("Kolom Latitude/Longitude tidak ditemukan.", 'error');
 
             json.forEach(row => {
@@ -717,11 +662,9 @@
                 if (combinedKey && row[combinedKey]) { 
                     const parts = row[combinedKey].toString().replace(/['"]/g, '').trim().split(/\s*[,;]\s*|\s+/); 
                     if(parts.length >= 2) { lat = parseFloat(parts[0]); lng = parseFloat(parts[1]); } 
-                } 
-                else if (latKey && lonKey) { 
+                } else if (latKey && lonKey) { 
                     lat = parseFloat(row[latKey]); lng = parseFloat(row[lonKey]); 
                 }
-                
                 if(!isNaN(lat) && !isNaN(lng)) { newData.push({ lat: lat, lng: lng, props: row }); }
             });
 
@@ -732,7 +675,6 @@
         function resetUpload() { document.getElementById('fileInput').value = ''; document.getElementById('fileInfo').classList.add('hidden'); document.getElementById('dropZone').classList.remove('hidden'); }
         function generateDummyData() {
             rawData=[]; const clat=-6.200, clng=106.816;
-            // Generate 1000 for demo, but code handles more
             for(let i=0; i<1000; i++) {
                 const u = 1 - Math.random(); const v = 1 - Math.random();
                 const randStdNormal = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
@@ -753,28 +695,21 @@
             const table = document.getElementById('mainDataTable');
             table.innerHTML = '';
             document.getElementById('managerCount').innerText = rawData.length;
-            
             if(rawData.length === 0) {
                 document.getElementById('tableFooter').innerHTML = '<span class="text-slate-400 italic">Tidak ada data.</span>';
                 return;
             }
-
             const headers = Object.keys(rawData[0].props);
             let thead = '<thead><tr><th class="w-10">#</th>';
             headers.forEach(h => thead += `<th>${h}</th>`);
             thead += '<th class="w-10 text-center">Aksi</th></tr></thead>';
             table.innerHTML = thead;
-            
             let tbody = '<tbody>';
-            
-            // PAGINATION LOGIC
             const totalPages = Math.ceil(rawData.length / itemsPerPage);
             if (currentPage < 1) currentPage = 1;
             if (currentPage > totalPages) currentPage = totalPages;
-            
             const start = (currentPage - 1) * itemsPerPage;
             const end = Math.min(start + itemsPerPage, rawData.length);
-            
             for(let i=start; i<end; i++) {
                 const d = rawData[i];
                 tbody += `<tr class="hover:bg-blue-50 cursor-pointer transition-colors" onclick="zoomToData(${i})" title="Klik untuk lihat di peta"><td class="text-gray-400 text-xs">${i+1}</td>`;
@@ -786,8 +721,6 @@
             }
             tbody += '</tbody>';
             table.innerHTML += tbody;
-
-            // RENDER PAGINATION CONTROLS
             const footer = document.getElementById('tableFooter');
             footer.innerHTML = `
                 <div class="flex justify-center items-center gap-4">
@@ -808,22 +741,11 @@
         }
 
         function deleteRow(i) { 
-            if(confirm("Apakah Anda yakin ingin menghapus baris data ini?")) { 
-                rawData.splice(i,1); 
-                displayData=[...rawData]; 
-                openDataManager(currentPage); 
-                updateUI(); 
-            } 
+            if(confirm("Apakah Anda yakin ingin menghapus baris data ini?")) { rawData.splice(i,1); displayData=[...rawData]; openDataManager(currentPage); updateUI(); } 
         }
 
         function clearAllData() { 
-            if(confirm("Apakah Anda yakin ingin menghapus SEMUA data?")) { 
-                rawData=[]; 
-                displayData=[]; 
-                openDataManager(1); 
-                updateUI(); 
-                showToast("Semua data dihapus.", 'info');
-            } 
+            if(confirm("Apakah Anda yakin ingin menghapus SEMUA data?")) { rawData=[]; displayData=[]; openDataManager(1); updateUI(); showToast("Semua data dihapus.", 'info'); } 
         }
 
         function updateUI() { 
@@ -837,86 +759,57 @@
             if(activeLayer) { map.removeLayer(activeLayer); activeLayer=null; }
             const mode = document.getElementById('viewMode').value;
             const cf = styleConfig[mode];
-
-            if(displayData.length === 0) { showToast("Tidak ada data untuk ditampilkan.", 'info'); return; }
+            if(displayData.length === 0) return;
 
             if(mode === 'heatmap') {
-                activeLayer = L.heatLayer(displayData.map(d=>[d.lat,d.lng, 1]), { 
-                    radius: cf.radius, blur: cf.blur, max: cf.max,
-                    gradient: { 0.0: 'navy', 0.3: 'blue', 0.5: 'lime', 0.7: 'yellow', 1.0: 'red' }
-                }).addTo(map);
+                activeLayer = L.heatLayer(displayData.map(d=>[d.lat,d.lng, 1]), { radius: cf.radius, blur: cf.blur, max: cf.max, gradient: { 0.0: 'navy', 0.3: 'blue', 0.5: 'lime', 0.7: 'yellow', 1.0: 'red' } }).addTo(map);
             } else if(mode === 'point') {
-                activeLayer = L.markerClusterGroup({
-                    chunkedLoading: true,
-                    maxClusterRadius: 50,
-                    spiderfyOnMaxZoom: true,
-                    showCoverageOnHover: false,
-                    iconCreateFunction: function(cluster) {
-                        return L.divIcon({ 
-                            html: `<div style="background-color: ${cf.color}; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; box-shadow: 0 0 5px rgba(0,0,0,0.3);">${cluster.getChildCount()}</div>`, 
-                            className: 'custom-cluster', 
-                            iconSize: [30, 30] 
-                        });
-                    }
+                activeLayer = L.markerClusterGroup({ chunkedLoading: true, maxClusterRadius: 50, spiderfyOnMaxZoom: true, showCoverageOnHover: false,
+                    iconCreateFunction: function(cluster) { return L.divIcon({ html: `<div style="background-color: ${cf.color}; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; box-shadow: 0 0 5px rgba(0,0,0,0.3);">${cluster.getChildCount()}</div>`, className: 'custom-cluster', iconSize: [30, 30] }); }
                 });
-                
                 const markers = displayData.map(d => {
-                    const m = L.circleMarker([d.lat,d.lng], {
-                        radius: cf.radius, 
-                        fillColor: cf.color, 
-                        color:'#fff', 
-                        weight:1, 
-                        fillOpacity: cf.opacity
-                    });
+                    const m = L.circleMarker([d.lat,d.lng], { radius: cf.radius, fillColor: cf.color, color:'#fff', weight:1, fillOpacity: cf.opacity });
                     m.bindPopup(createPopup(d));
                     return m;
                 });
-                
                 activeLayer.addLayers(markers);
                 map.addLayer(activeLayer);
             } else if(mode === 'line') {
                 activeLayer = L.featureGroup();
-                const latlngs = displayData.map(d => [d.lat, d.lng]);
-                L.polyline(latlngs, { color: cf.color, weight: cf.weight, opacity: cf.opacity }).addTo(activeLayer);
+                L.polyline(displayData.map(d => [d.lat, d.lng]), { color: cf.color, weight: cf.weight, opacity: cf.opacity }).addTo(activeLayer);
                 activeLayer.addTo(map);
             } else {
                 activeLayer = L.featureGroup();
-                const limit = Math.min(displayData.length, 2000);
-                for(let i=0; i<limit; i++) {
-                    const d = displayData[i];
-                    let m = L.circle([d.lat,d.lng], {radius: cf.radiusScale, color: cf.color, weight:1, opacity: cf.opacity});
-                    m.bindPopup(createPopup(d)).addTo(activeLayer);
-                }
+                displayData.slice(0, 2000).forEach(d => L.circle([d.lat,d.lng], {radius: cf.radiusScale, color: cf.color, weight:1, opacity: cf.opacity}).bindPopup(createPopup(d)).addTo(activeLayer));
                 activeLayer.addTo(map);
             }
         }
 
-        // HELPER: Improved Data Formatting
+        // IMPROVED HELPER: Logic for Date Formatting to DD/MM/YYYY
         function formatValueForDisplay(val, key) {
             if (val === undefined || val === null) return "-";
             let kLower = key.toLowerCase();
             
-            // Handle Excel Serial Numbers
+            // Kolom yang kemungkinan berisi tanggal
+            const isDateCol = kLower.includes('date') || kLower.includes('tanggal') || kLower.includes('gps time');
+            const isTimeCol = kLower.includes('time') || kLower.includes('jam') || kLower.includes('sampai') || kLower.includes('dari');
+
+            // Tangani Angka Serial Excel (45xxx.x)
             if (typeof val === 'number') {
-                if (kLower.includes('date') && val > 25569 && val < 100000) return formatExcelSerialDate(val);
-                if (kLower.includes('time') && val < 1) return formatExcelSerialTime(val);
-                if (kLower.includes('duration')) return formatDuration(val);
+                if (isDateCol && val > 25569 && val < 100000) return formatExcelSerialDate(val);
+                if (isTimeCol && val < 1) return formatExcelSerialTime(val);
+                if (kLower.includes('duration') || kLower.includes('durasi')) return formatDuration(val);
                 if (val % 1 !== 0) return val.toFixed(5);
                 return val;
             }
             
-            // Handle Date Strings (YYYY-MM-DD or YYYY-MM-DD HH:mm:ss)
+            // Tangani String Tanggal (YYYY-MM-DD atau ISO)
             if (typeof val === 'string') {
-                // ISO Date check
-                if (val.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                    const [y, m, d] = val.split('-');
-                    return `${d}/${m}/${y}`;
-                }
-                // ISO DateTime check
-                if (val.match(/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}$/)) {
-                    const [dt, tm] = val.split(' ');
-                    const [y, m, d] = dt.split('-');
-                    return `${d}/${m}/${y} ${tm}`;
+                // Regex untuk deteksi YYYY-MM-DD atau YYYY/MM/DD, opsional dengan waktu
+                let dateMatch = val.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(\s\d{2}:\d{2}:\d{2})?$/);
+                if (dateMatch) {
+                    const [_, y, m, d, time] = dateMatch;
+                    return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}${time || ''}`;
                 }
             }
             
@@ -946,20 +839,12 @@
         }
 
         function createPopup(d) {
-            let content = `<div class='font-sans text-left min-w-[150px]'>`;
-            content += `<div class="bg-blue-50 p-2 -mx-3 -mt-3 mb-2 border-b border-blue-100 rounded-t text-center"><b class="text-blue-800">Info Data</b></div>`;
-            
+            let content = `<div class='font-sans text-left min-w-[150px]'><div class="bg-blue-50 p-2 -mx-3 -mt-3 mb-2 border-b border-blue-100 rounded-t text-center"><b class="text-blue-800">Info Data</b></div>`;
             for (const [key, value] of Object.entries(d.props)) {
-                let displayVal = formatValueForDisplay(value, key);
-                content += `<div class="flex justify-between text-xs mb-1"><span class="text-slate-500 font-medium mr-2">${key}:</span> <span class="text-slate-800">${displayVal}</span></div>`;
+                content += `<div class="flex justify-between text-xs mb-1"><span class="text-slate-500 font-medium mr-2">${key}:</span> <span class="text-slate-800">${formatValueForDisplay(value, key)}</span></div>`;
             }
             const dataStr = JSON.stringify(d.props).replace(/"/g, '&quot;');
-            content += `
-                <div class="mt-2 pt-2 border-t border-slate-100 flex gap-1">
-                    <a href="https://www.google.com/maps?q=&layer=c&cbll=${d.lat},${d.lng}" target="_blank" class="flex-1 bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold py-1 px-2 rounded text-center"><i class="fa-solid fa-street-view"></i> SV</a>
-                    <button onclick='analyzeDataPoint(${d.lat}, ${d.lng}, ${dataStr})' class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1 px-2 rounded"><i class="fa-solid fa-robot"></i> AI</button>
-                </div>
-            </div>`;
+            content += `<div class="mt-2 pt-2 border-t border-slate-100 flex gap-1"><a href="https://www.google.com/maps?q=&layer=c&cbll=${d.lat},${d.lng}" target="_blank" class="flex-1 bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold py-1 px-2 rounded text-center"><i class="fa-solid fa-street-view"></i> SV</a><button onclick='analyzeDataPoint(${d.lat}, ${d.lng}, ${dataStr})' class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1 px-2 rounded"><i class="fa-solid fa-robot"></i> AI</button></div></div>`;
             return content;
         }
 
@@ -969,36 +854,17 @@
         async function callAI(promptOrPayload, isStructured = false) {
             const key = apiKey || "ENV_KEY"; 
             document.getElementById('aiProcessing').style.display = 'flex';
-            
-            let payload = promptOrPayload;
-            if (!isStructured) {
-                payload = { contents: [{parts:[{text: promptOrPayload}]}] };
-                if (!promptOrPayload.includes("Analisis titik:")) {
-                    payload.tools = [{ "google_search": {} }];
-                }
-            }
-
+            let payload = isStructured ? promptOrPayload : { contents: [{parts:[{text: promptOrPayload}]}] };
+            if (!isStructured && !promptOrPayload.includes("Analisis titik:")) payload.tools = [{ "google_search": {} }];
             const maxRetries = 3;
             for (let attempt = 0; attempt < maxRetries; attempt++) {
                 try {
-                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`;
-                    const res = await fetch(apiUrl, {
-                        method: 'POST', 
-                        headers: {'Content-Type':'application/json'}, 
-                        body: JSON.stringify(payload)
-                    });
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
                     if (!res.ok) throw new Error(`API Error: ${res.status}`);
                     const d = await res.json();
                     if (d.candidates && d.candidates[0].content.parts[0]) return d.candidates[0].content.parts[0].text; 
                     throw new Error("Respon AI tidak valid.");
-                } catch(e) { 
-                    if (attempt < maxRetries - 1) { 
-                        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000)); 
-                    } else {
-                        showToast("AI Error: Layanan tidak tersedia.", 'error'); 
-                        return null;
-                    }
-                }
+                } catch(e) { if (attempt < maxRetries - 1) await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000)); else { showToast("AI Error: Layanan tidak tersedia.", 'error'); return null; } }
             }
             return null;
         }
@@ -1010,52 +876,25 @@
         }
 
         async function analyzeDataPoint(lat, lng, props) {
-            const propStr = JSON.stringify(props, null, 2);
-            const txt = await callAI(`Analisis titik: ${lat}, ${lng}. Data: ${propStr}. Lakukan analisis Klasifikasi Jalan (UU 22/2009) dan hubungkan dengan data.`);
+            const txt = await callAI(`Analisis titik: ${lat}, ${lng}. Data: ${JSON.stringify(props, null, 2)}. Lakukan analisis Klasifikasi Jalan (UU 22/2009) dan hubungkan dengan data.`);
             document.getElementById('aiProcessing').style.display = 'none';
             if (txt) showAIResult(txt);
         }
 
         async function handleAICommand() {
-            const q = document.getElementById('aiCommandInput').value.trim(); 
-            if(!q) return;
+            const q = document.getElementById('aiCommandInput').value.trim(); if(!q) return;
             const coordRegex = /^(-?\d+(\.\d+)?)[,\s]+(-?\d+(\.\d+)?)$/;
             const match = q.match(coordRegex);
-            if (match) {
-                const lat = parseFloat(match[1]), lng = parseFloat(match[3]);
-                map.setView([lat, lng], 15);
-                L.popup().setLatLng([lat, lng]).setContent(`<b>📍 Koordinat</b><br>${lat}, ${lng}`).openOn(map);
-                return;
-            }
+            if (match) { map.setView([parseFloat(match[1]), parseFloat(match[3])], 15); L.popup().setLatLng([parseFloat(match[1]), parseFloat(match[3])]).setContent(`<b>📍 Koordinat</b><br>${match[1]}, ${match[3]}`).openOn(map); return; }
             const dataKeys = Object.keys(rawData[0]?.props || {});
-            const prompt = `User query: "${q}". Data props: ${dataKeys.join(', ')}. Return action (NAVIGATE/FILTER/RESET) in JSON.`;
-            const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            action: { type: "STRING", enum: ["NAVIGATE", "FILTER", "RESET"] },
-                            column: { type: "STRING" }, operator: { type: "STRING" }, value: { type: "STRING" },
-                            lat: { type: "NUMBER" }, lng: { type: "NUMBER" }, zoom: { type: "NUMBER" }, label: { type: "STRING" }
-                        },
-                        required: ["action"]
-                    }
-                },
-                tools: [{ "google_search": {} }]
-            };
+            const payload = { contents: [{ parts: [{ text: `User query: "${q}". Data props: ${dataKeys.join(', ')}. Return action (NAVIGATE/FILTER/RESET) in JSON.` }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { action: { type: "STRING", enum: ["NAVIGATE", "FILTER", "RESET"] }, column: { type: "STRING" }, operator: { type: "STRING" }, value: { type: "STRING" }, lat: { type: "NUMBER" }, lng: { type: "NUMBER" }, zoom: { type: "NUMBER" }, label: { type: "STRING" } }, required: ["action"] } }, tools: [{ "google_search": {} }] };
             try {
-                const txt = await callAI(payload, true);
-                if (!txt) return;
+                const txt = await callAI(payload, true); if (!txt) return;
                 const act = JSON.parse(txt.replace(/```json|```/g,'').trim());
-                if(act.action === 'NAVIGATE') {
-                    map.setView([act.lat, act.lng], act.zoom || 13);
-                    L.popup().setLatLng([act.lat, act.lng]).setContent(`📍 ${act.label}`).openOn(map);
-                } else if(act.action === 'FILTER' && rawData.length > 0) {
+                if(act.action === 'NAVIGATE') { map.setView([act.lat, act.lng], act.zoom || 13); L.popup().setLatLng([act.lat, act.lng]).setContent(`📍 ${act.label}`).openOn(map); }
+                else if(act.action === 'FILTER' && rawData.length > 0) {
                     const filtered = rawData.filter(d => String(d.props[act.column]).toLowerCase().includes(String(act.value).toLowerCase()));
-                    if(filtered.length > 0) { displayData = filtered; updateUI(); showToast(`${filtered.length} data disaring.`, 'success'); }
-                    else showToast("0 Data ditemukan.", 'error');
+                    if(filtered.length > 0) { displayData = filtered; updateUI(); showToast(`${filtered.length} data disaring.`, 'success'); } else showToast("0 Data ditemukan.", 'error');
                 } else if(act.action==='RESET') resetFilter();
             } catch(e) { showToast("Gagal memproses AI command.", 'error'); }
         }
@@ -1075,36 +914,21 @@
             if (txt) showAIResult(txt); 
         }
         
-        function showAIResult(txt) { 
-            document.getElementById('aiOutput').innerHTML = marked.parse(txt); 
-            toggleModal('aiModal', true); 
-        }
+        function showAIResult(txt) { document.getElementById('aiOutput').innerHTML = marked.parse(txt); toggleModal('aiModal', true); }
         function closeAIModal() { toggleModal('aiModal', false); }
-        function toggleMinMax(id, min) { 
-            const c = document.getElementById(id); 
-            if(min) { document.getElementById('mainFullContent').classList.add('hidden'); document.getElementById('mainMiniContent').classList.remove('hidden'); } 
-            else { document.getElementById('mainMiniContent').classList.add('hidden'); document.getElementById('mainFullContent').classList.remove('hidden'); } 
-        }
+        function toggleMinMax(id, min) { if(min) { document.getElementById('mainFullContent').classList.add('hidden'); document.getElementById('mainMiniContent').classList.remove('hidden'); } else { document.getElementById('mainMiniContent').classList.add('hidden'); document.getElementById('mainFullContent').classList.remove('hidden'); } }
         function resetFilter() { displayData=[...rawData]; updateUI(); document.getElementById('aiCommandInput').value=''; showToast("Filter dihapus.", 'info'); }
         
         const drawControl = new L.Control.Draw({ draw: { polyline:true, polygon:true, rectangle:true, circle:false, marker:false }, edit: { featureGroup: drawnItems } }); map.addControl(drawControl);
         map.on(L.Draw.Event.CREATED, e => { drawnItems.clearLayers(); drawnItems.addLayer(e.layer); currentDrawnLayer=e.layer; document.getElementById('measurePanel').classList.remove('hidden'); updateMeasure(e.layer); });
         function updateMeasure(l) { 
             let val=0, unit='km'; 
-            if (l instanceof L.Polyline) { 
-                const lls = l.getLatLngs().flat(2); 
-                for(let i=0; i<lls.length-1; i++) val += lls[i].distanceTo(lls[i+1]);
-                val = (val/1000).toFixed(2);
-            } else if (l instanceof L.Polygon) {
-                val = (L.GeometryUtil.geodesicArea(l.getLatLngs().flat(2)) / 1000000).toFixed(2);
-                unit = 'km²';
-            }
-            document.getElementById('measureResult').innerText = val; 
-            document.querySelector('#measurePanel .bg-green-50 span:last-child').innerText = unit.toUpperCase();
+            if (l instanceof L.Polyline) { l.getLatLngs().flat(2).forEach((ll, i, arr) => { if(i < arr.length-1) val += ll.distanceTo(arr[i+1]); }); val = (val/1000).toFixed(2); } 
+            else if (l instanceof L.Polygon) { val = (L.GeometryUtil.geodesicArea(l.getLatLngs().flat(2)) / 1000000).toFixed(2); unit = 'km²'; }
+            document.getElementById('measureResult').innerText = val; document.querySelector('#measurePanel .bg-green-50 span:last-child').innerText = unit.toUpperCase();
         }
         function clearDrawings() { drawnItems.clearLayers(); currentDrawnLayer=null; document.getElementById('measurePanel').classList.add('hidden'); }
-        let activeDragEl=null, initialX, initialY; 
-        const dragOffsets = {'controlContainer':{x:0,y:0}, 'measurePanel':{x:0,y:0}, 'routeInfoPanel':{x:0,y:0}};
+        let activeDragEl=null, initialX, initialY; const dragOffsets = {'controlContainer':{x:0,y:0}, 'measurePanel':{x:0,y:0}, 'routeInfoPanel':{x:0,y:0}};
         document.addEventListener("mousedown", e => { let h = e.target.closest('.draggable-header'); if(!h) return; const id = h.getAttribute('data-target'); if(id) { activeDragEl = document.getElementById(id); initialX = e.clientX - dragOffsets[id].x; initialY = e.clientY - dragOffsets[id].y; } });
         document.addEventListener("mouseup", () => activeDragEl=null);
         document.addEventListener("mousemove", e => { if(activeDragEl) { const x = e.clientX - initialX; const y = e.clientY - initialY; dragOffsets[activeDragEl.id] = {x,y}; activeDragEl.style.transform = `translate3d(${x}px, ${y}px, 0)`; } });
