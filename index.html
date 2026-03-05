@@ -41,9 +41,9 @@
         .cursor-streetview { cursor: url('https://maps.gstatic.com/mapfiles/openhand_8_8.cur'), pointer !important; }
 
         /* Tables & UI */
-        .data-table-container { max-height: 300px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
-        .data-table { width: 100%; text-align: left; border-collapse: collapse; font-size: 0.75rem; }
-        .data-table th { position: sticky; top: 0; background: #f1f5f9; padding: 10px 8px; border-bottom: 2px solid #cbd5e1; color: #334155; font-weight: 700; }
+        .data-table-container { max-height: 300px; overflow-y: auto; overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .data-table { width: 100%; text-align: left; border-collapse: collapse; font-size: 0.75rem; white-space: nowrap; }
+        .data-table th { position: sticky; top: 0; background: #f1f5f9; padding: 10px 8px; border-bottom: 2px solid #cbd5e1; color: #334155; font-weight: 700; z-index: 10; }
         .data-table td { padding: 8px; border-bottom: 1px solid #f1f5f9; color: #475569; }
         .data-table tr:hover { background-color: #e0f2fe; cursor: pointer; }
         
@@ -690,15 +690,19 @@
             let latKey, lonKey, combinedKey;
             const keys = Object.keys(json[0] || {});
             
-            // Cek kolom yang mengandung Lat dan Long sekaligus (seperti "Lat, Long Start")
-            combinedKey = keys.find(k => k.toLowerCase().includes('lat') && (k.toLowerCase().includes('lon') || k.toLowerCase().includes('lng')));
+            // Cek kolom gabungan ("Lat, Long Start")
+            combinedKey = keys.find(k => {
+                const kl = k.toLowerCase();
+                return kl.includes('lat') && (kl.includes('lon') || kl.includes('lng')) && kl.includes(',');
+            });
 
+            // Cek kolom terpisah ("Latitude", "Longitude")
             if (!combinedKey) {
-                latKey = keys.find(k => k.toLowerCase() === 'lat' || k.toLowerCase() === 'latitude' || (k.toLowerCase().includes('lat') && !k.toLowerCase().includes('lon')));
-                lonKey = keys.find(k => k.toLowerCase() === 'lon' || k.toLowerCase() === 'lng' || k.toLowerCase() === 'longitude' || k.toLowerCase().includes('lon') || k.toLowerCase().includes('lng'));
+                latKey = keys.find(k => k.toLowerCase() === 'lat' || k.toLowerCase() === 'latitude' || k.toLowerCase().startsWith('lat'));
+                lonKey = keys.find(k => k.toLowerCase() === 'lon' || k.toLowerCase() === 'lng' || k.toLowerCase() === 'longitude' || k.toLowerCase().startsWith('lon') || k.toLowerCase().startsWith('lng'));
             }
 
-            // Fallback: Cek regex dari isi data jika header tidak baku
+            // Fallback: deteksi isi baris pertama jika header tidak baku
             if (!latKey && !lonKey && !combinedKey) { 
                 combinedKey = keys.find(k => { 
                     const val = json[0][k]; 
@@ -711,11 +715,10 @@
             json.forEach(row => {
                 let lat, lng;
                 if (combinedKey && row[combinedKey]) { 
-                    // Split berdasarkan koma, titik koma, atau spasi
                     const parts = row[combinedKey].toString().replace(/['"]/g, '').trim().split(/\s*[,;]\s*|\s+/); 
                     if(parts.length >= 2) { lat = parseFloat(parts[0]); lng = parseFloat(parts[1]); } 
                 } 
-                else { 
+                else if (latKey && lonKey) { 
                     lat = parseFloat(row[latKey]); lng = parseFloat(row[lonKey]); 
                 }
                 
@@ -758,15 +761,13 @@
 
             const headers = Object.keys(rawData[0].props);
             let thead = '<thead><tr><th class="w-10">#</th>';
-            headers.forEach(h => { if(h !== 'lat' && h !== 'lng') thead += `<th>${h}</th>` }); // Hide lat/lng if not needed, but keep generic for now
-            thead = '<thead><tr><th class="w-10">#</th>';
             headers.forEach(h => thead += `<th>${h}</th>`);
             thead += '<th class="w-10 text-center">Aksi</th></tr></thead>';
             table.innerHTML = thead;
             
             let tbody = '<tbody>';
             
-            // PAGINATION LOGIC (Ringan)
+            // PAGINATION LOGIC
             const totalPages = Math.ceil(rawData.length / itemsPerPage);
             if (currentPage < 1) currentPage = 1;
             if (currentPage > totalPages) currentPage = totalPages;
@@ -778,9 +779,7 @@
                 const d = rawData[i];
                 tbody += `<tr class="hover:bg-blue-50 cursor-pointer transition-colors" onclick="zoomToData(${i})" title="Klik untuk lihat di peta"><td class="text-gray-400 text-xs">${i+1}</td>`;
                 headers.forEach(h => {
-                    let val = d.props[h];
-                    if(typeof val === 'object' && val !== null) val = JSON.stringify(val);
-                    if(typeof val === 'number' && val % 1 !== 0) val = val.toFixed(5);
+                    let val = formatValueForDisplay(d.props[h], h);
                     tbody += `<td>${val !== undefined ? val : '-'}</td>`;
                 });
                 tbody += `<td class="text-center" onclick="event.stopPropagation()"><i class="fa-solid fa-trash-can btn-delete-row cursor-pointer text-red-500" onclick="deleteRow(${i})"></i></td></tr>`;
@@ -803,9 +802,7 @@
             const d = rawData[index];
             if(!d) return;
             toggleModal('dataManagerModal', false);
-            // If using Cluster, we need to zoom deep enough
             map.flyTo([d.lat, d.lng], 18, { duration: 1.5 });
-            
             const content = createPopup(d);
             L.popup().setLatLng([d.lat, d.lng]).setContent(content).openOn(map);
         }
@@ -849,13 +846,11 @@
                     gradient: { 0.0: 'navy', 0.3: 'blue', 0.5: 'lime', 0.7: 'yellow', 1.0: 'red' }
                 }).addTo(map);
             } else if(mode === 'point') {
-                // CLUSTERING MODE FOR BIG DATA (Disarankan untuk 100.000 data)
                 activeLayer = L.markerClusterGroup({
-                    chunkedLoading: true, // PENTING: Mencegah browser freeze saat memproses banyak data
+                    chunkedLoading: true,
                     maxClusterRadius: 50,
                     spiderfyOnMaxZoom: true,
                     showCoverageOnHover: false,
-                    // Custom icon creator function for consistency (optional)
                     iconCreateFunction: function(cluster) {
                         return L.divIcon({ 
                             html: `<div style="background-color: ${cf.color}; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; box-shadow: 0 0 5px rgba(0,0,0,0.3);">${cluster.getChildCount()}</div>`, 
@@ -880,15 +875,13 @@
                 activeLayer.addLayers(markers);
                 map.addLayer(activeLayer);
             } else if(mode === 'line') {
-                // Mode Jalur: Bisa sangat berat untuk 100.000 titik. Filter data disarankan!
                 activeLayer = L.featureGroup();
                 const latlngs = displayData.map(d => [d.lat, d.lng]);
                 L.polyline(latlngs, { color: cf.color, weight: cf.weight, opacity: cf.opacity }).addTo(activeLayer);
                 activeLayer.addTo(map);
             } else {
-                // Circle mode (Standard Limit to prevent crash)
                 activeLayer = L.featureGroup();
-                const limit = Math.min(displayData.length, 2000); // Batasan aman untuk mode non-optimized
+                const limit = Math.min(displayData.length, 2000);
                 for(let i=0; i<limit; i++) {
                     const d = displayData[i];
                     let m = L.circle([d.lat,d.lng], {radius: cf.radiusScale, color: cf.color, weight:1, opacity: cf.opacity});
@@ -898,20 +891,46 @@
             }
         }
 
-        // HELPER: Format Time & Duration
+        // HELPER: Improved Data Formatting
+        function formatValueForDisplay(val, key) {
+            if (val === undefined || val === null) return "-";
+            let kLower = key.toLowerCase();
+            
+            // Handle Excel Serial Numbers
+            if (typeof val === 'number') {
+                if (kLower.includes('date') && val > 25569 && val < 100000) return formatExcelSerialDate(val);
+                if (kLower.includes('time') && val < 1) return formatExcelSerialTime(val);
+                if (kLower.includes('duration')) return formatDuration(val);
+                if (val % 1 !== 0) return val.toFixed(5);
+                return val;
+            }
+            
+            // Handle Date Strings (YYYY-MM-DD or YYYY-MM-DD HH:mm:ss)
+            if (typeof val === 'string') {
+                // ISO Date check
+                if (val.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    const [y, m, d] = val.split('-');
+                    return `${d}/${m}/${y}`;
+                }
+                // ISO DateTime check
+                if (val.match(/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}$/)) {
+                    const [dt, tm] = val.split(' ');
+                    const [y, m, d] = dt.split('-');
+                    return `${d}/${m}/${y} ${tm}`;
+                }
+            }
+            
+            if (typeof val === 'object') return JSON.stringify(val);
+            return val;
+        }
+
         function formatExcelSerialDate(serial) {
-            if (!serial) return "";
             const date = new Date(Math.round((serial - 25569) * 86400 * 1000));
-            const d = String(date.getDate()).padStart(2, '0');
-            const m = String(date.getMonth() + 1).padStart(2, '0');
-            const y = date.getFullYear();
-            return `${d}/${m}/${y}`;
+            return `${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}`;
         }
 
         function formatExcelSerialTime(serial) {
-            if (serial === undefined || serial === null) return "";
-            let frac = serial % 1; 
-            let totalSeconds = Math.round(frac * 86400);
+            let totalSeconds = Math.round((serial % 1) * 86400);
             const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
             const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
             const s = String(totalSeconds % 60).padStart(2, '0');
@@ -919,9 +938,7 @@
         }
 
         function formatDuration(secondsInput) {
-            if (!secondsInput) return "";
-            let val = parseFloat(secondsInput);
-            let totalSeconds = Math.round(val);
+            let totalSeconds = Math.round(parseFloat(secondsInput));
             const h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
             const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
             const s = String(totalSeconds % 60).padStart(2, '0');
@@ -933,18 +950,7 @@
             content += `<div class="bg-blue-50 p-2 -mx-3 -mt-3 mb-2 border-b border-blue-100 rounded-t text-center"><b class="text-blue-800">Info Data</b></div>`;
             
             for (const [key, value] of Object.entries(d.props)) {
-                let displayVal = value;
-                let kLower = key.toLowerCase();
-                // Attempt to auto-format dates/times if they look like Excel serial numbers
-                if (typeof value === 'number') {
-                    if (kLower.includes('date') && value > 25569 && value < 100000) { displayVal = formatExcelSerialDate(value); }
-                    else if (kLower.includes('time') && value < 1) { displayVal = formatExcelSerialTime(value); }
-                    else if (kLower.includes('duration')) { displayVal = formatDuration(value); }
-                    else if (value % 1 !== 0) { displayVal = value.toFixed(5); }
-                }
-
-                if(typeof value === 'object' && value !== null) displayVal = JSON.stringify(value);
-                
+                let displayVal = formatValueForDisplay(value, key);
                 content += `<div class="flex justify-between text-xs mb-1"><span class="text-slate-500 font-medium mr-2">${key}:</span> <span class="text-slate-800">${displayVal}</span></div>`;
             }
             const dataStr = JSON.stringify(d.props).replace(/"/g, '&quot;');
@@ -957,11 +963,10 @@
             return content;
         }
 
-        // --- AI & MISC ---
-        const apiKey = ""; // Diset kosong untuk inject sistem otomatis jika dipakai di canvas.
+        // --- AI ---
+        const apiKey = ""; 
 
         async function callAI(promptOrPayload, isStructured = false) {
-            // Kita bypass validasi lokal karena key disediakan dari runtime environment
             const key = apiKey || "ENV_KEY"; 
             document.getElementById('aiProcessing').style.display = 'flex';
             
@@ -982,23 +987,15 @@
                         headers: {'Content-Type':'application/json'}, 
                         body: JSON.stringify(payload)
                     });
-
-                    if (!res.ok) {
-                        throw new Error(`API Error: ${res.status}`);
-                    }
-                    
+                    if (!res.ok) throw new Error(`API Error: ${res.status}`);
                     const d = await res.json();
-                    if (d.candidates && d.candidates[0].content.parts[0]) { 
-                        return d.candidates[0].content.parts[0].text; 
-                    }
+                    if (d.candidates && d.candidates[0].content.parts[0]) return d.candidates[0].content.parts[0].text; 
                     throw new Error("Respon AI tidak valid.");
-
                 } catch(e) { 
                     if (attempt < maxRetries - 1) { 
-                        const delay = Math.pow(2, attempt) * 1000;
-                        await new Promise(resolve => setTimeout(resolve, delay)); 
+                        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000)); 
                     } else {
-                        showToast("AI Error: Pastikan layanan AI tersedia.", 'error'); 
+                        showToast("AI Error: Layanan tidak tersedia.", 'error'); 
                         return null;
                     }
                 }
@@ -1007,16 +1004,14 @@
         }
         
         async function analyzeLocation(lat, lng) {
-            const prompt = `Analisis lokasi di koordinat ${lat}, ${lng}. Lakukan analisis Klasifikasi Jalan sesuai Undang-Undang No. 22 Tahun 2009. 1. Identifikasi nama jalan/daerah. 2. Fungsi Jalan. 3. Status Jalan. 4. Kondisi fisik.`;
-            const txt = await callAI(prompt);
+            const txt = await callAI(`Analisis lokasi di koordinat ${lat}, ${lng}. Lakukan analisis Klasifikasi Jalan sesuai UU No. 22 Tahun 2009.`);
             document.getElementById('aiProcessing').style.display = 'none';
             if (txt) showAIResult(txt);
         }
 
         async function analyzeDataPoint(lat, lng, props) {
             const propStr = JSON.stringify(props, null, 2);
-            const prompt = `Analisis titik: ${lat}, ${lng}. Data: ${propStr}. Lakukan analisis Klasifikasi Jalan (UU 22/2009) dan hubungkan dengan data. Berikan Rekomendasi keselamatan.`;
-            const txt = await callAI(prompt);
+            const txt = await callAI(`Analisis titik: ${lat}, ${lng}. Data: ${propStr}. Lakukan analisis Klasifikasi Jalan (UU 22/2009) dan hubungkan dengan data.`);
             document.getElementById('aiProcessing').style.display = 'none';
             if (txt) showAIResult(txt);
         }
@@ -1024,8 +1019,6 @@
         async function handleAICommand() {
             const q = document.getElementById('aiCommandInput').value.trim(); 
             if(!q) return;
-
-            // 1. Coordinate check
             const coordRegex = /^(-?\d+(\.\d+)?)[,\s]+(-?\d+(\.\d+)?)$/;
             const match = q.match(coordRegex);
             if (match) {
@@ -1034,16 +1027,8 @@
                 L.popup().setLatLng([lat, lng]).setContent(`<b>📍 Koordinat</b><br>${lat}, ${lng}`).openOn(map);
                 return;
             }
-
-            // 2. Structured AI Command (NAVIGATE/FILTER)
             const dataKeys = Object.keys(rawData[0]?.props || {});
-            
-            const prompt = `User wants to search, filter, or navigate based on the query: "${q}". Available data properties are: ${dataKeys.length ? dataKeys.join(', ') : 'Tidak ada data terunggah.'}. 
-            If the query refers to a location (city, area, coordinates), return a NAVIGATE action.
-            If the query asks for a filter condition (e.g., 'Kecepatan > 50', 'Driver = A'), return a FILTER action with the exact column name (case sensitive), the relational operator (e.g., =, >, <, >=, <=, !=), and the value. For string comparisons, assume '=' means substring match (case-insensitive) unless specified.
-            If the user asks to reset the filter, return RESET.
-            Return ONLY the JSON object.`;
-
+            const prompt = `User query: "${q}". Data props: ${dataKeys.join(', ')}. Return action (NAVIGATE/FILTER/RESET) in JSON.`;
             const payload = {
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
@@ -1052,129 +1037,66 @@
                         type: "OBJECT",
                         properties: {
                             action: { type: "STRING", enum: ["NAVIGATE", "FILTER", "RESET"] },
-                            column: { type: "STRING" },
-                            operator: { type: "STRING", enum: ["=", ">", "<", ">=", "<=", "!="] },
-                            value: { type: "STRING" },
+                            column: { type: "STRING" }, operator: { type: "STRING" }, value: { type: "STRING" },
                             lat: { type: "NUMBER" }, lng: { type: "NUMBER" }, zoom: { type: "NUMBER" }, label: { type: "STRING" }
                         },
                         required: ["action"]
                     }
                 },
-                tools: [{ "google_search": {} }] // Use search grounding for location searches
+                tools: [{ "google_search": {} }]
             };
-
             try {
-                const txt = await callAI(payload, true); // Pass true for structured JSON
+                const txt = await callAI(payload, true);
                 if (!txt) return;
-
                 const act = JSON.parse(txt.replace(/```json|```/g,'').trim());
-
                 if(act.action === 'NAVIGATE') {
                     map.setView([act.lat, act.lng], act.zoom || 13);
                     L.popup().setLatLng([act.lat, act.lng]).setContent(`📍 ${act.label}`).openOn(map);
-                }
-                else if(act.action === 'FILTER' && rawData.length > 0) {
-                    const { column, operator, value } = act;
-                    if (!column || !operator || value === undefined) { showToast("AI Filter tidak lengkap. Coba perjelas kueri.", 'error'); return; }
-
-                    const isNumeric = !isNaN(parseFloat(value)) && isFinite(value);
-                    const numericValue = isNumeric ? parseFloat(value) : null;
-                    const stringValue = String(value).toLowerCase();
-
-                    const filtered = rawData.filter(d => {
-                        const dataVal = d.props[column];
-                        if (dataVal === undefined) return false;
-
-                        // Numeric comparison
-                        if (typeof dataVal === 'number' && isNumeric) {
-                            switch (operator) {
-                                case '>': return dataVal > numericValue;
-                                case '<': return dataVal < numericValue;
-                                case '>=': return dataVal >= numericValue;
-                                case '<=': return dataVal <= numericValue;
-                                case '!=': return dataVal !== numericValue;
-                                case '=': default: return dataVal === numericValue;
-                            }
-                        }
-                        // String comparison (substring match for '=')
-                        else if (typeof dataVal === 'string') {
-                            const dataStrLower = dataVal.toLowerCase();
-                            switch (operator) {
-                                case '!=': return !dataStrLower.includes(stringValue);
-                                case '=': default: return dataStrLower.includes(stringValue);
-                            }
-                        }
-                        return false;
-                    });
-
-                    if(filtered.length > 0) {
-                        displayData = filtered;
-                        updateUI();
-                        showToast(`${filtered.length} data disaring (${column} ${operator} ${value}).`, 'success');
-                    } else {
-                        displayData = []; // Clear map if no match
-                        updateUI();
-                        showToast(`0 Data ditemukan untuk filter "${q}".`, 'error');
-                    }
-                }
-                else if(act.action==='RESET') resetFilter();
-            } catch(e) { 
-                console.error("Error processing AI command:", e); 
-                showToast("Gagal memproses AI command.", 'error'); 
-            }
+                } else if(act.action === 'FILTER' && rawData.length > 0) {
+                    const filtered = rawData.filter(d => String(d.props[act.column]).toLowerCase().includes(String(act.value).toLowerCase()));
+                    if(filtered.length > 0) { displayData = filtered; updateUI(); showToast(`${filtered.length} data disaring.`, 'success'); }
+                    else showToast("0 Data ditemukan.", 'error');
+                } else if(act.action==='RESET') resetFilter();
+            } catch(e) { showToast("Gagal memproses AI command.", 'error'); }
         }
         
         async function askAIGeneral() { 
             if(!displayData.length) return showToast("Data kosong", 'error'); 
-            const s = displayData.slice(0,15).map(d=>{
-                const props = Object.keys(d.props).map(k => `${k}: ${d.props[k]}`).join('; ');
-                return `${d.lat},${d.lng}, {${props}}`;
-            }).join('\n'); 
-            const prompt = `Sampel data awal (15 baris) dari total ${displayData.length} data adalah:\n${s}\n. Lakukan analisis dan interpretasi data ini. Fokus pada Klasifikasi Jalan sesuai UU No. 22/2009 (Fungsi, Status, Kondisi) berdasarkan lokasi yang terdeteksi. Berikan rekomendasi umum.`;
-            const txt = await callAI(prompt); 
+            const txt = await callAI(`Total data: ${displayData.length}. Analisis Klasifikasi Jalan (UU No. 22/2009) berdasarkan data lokasi yang ada.`);
             document.getElementById('aiProcessing').style.display = 'none';
             if (txt) showAIResult(txt); 
         }
         
         async function askAIArea() { 
-            if(!currentDrawnLayer) return showToast("Gambar area (polygon/rectangle) menggunakan kontrol di kanan bawah peta terlebih dahulu.", 'error'); 
-            const pts = currentDrawnLayer.getLatLngs().flat(2).map(p => `${p.lat}, ${p.lng}`).join('; ').substring(0, 1000);
-            
-            let dataInAreaCount = 0;
-            // Simple check: This requires turf.js for proper polygon check, for simplicity we only check point/area interaction.
-            // If the map is complex, we just use the boundary coordinates.
-            
-            const prompt = `Saya telah menggambar area di peta. Area ini didefinisikan oleh koordinat batas (dipotong untuk brevity): ${pts}. Total titik data yang diunggah adalah ${rawData.length}. Berikan analisis lokasi ini dengan fokus pada Klasifikasi Jalan (UU No. 22/2009).`;
-            const txt = await callAI(prompt); 
+            if(!currentDrawnLayer) return showToast("Gambar area terlebih dahulu.", 'error'); 
+            const pts = currentDrawnLayer.getLatLngs().flat(2).map(p => `${p.lat}, ${p.lng}`).join('; ');
+            const txt = await callAI(`Analisis area dengan koordinat batas: ${pts}. Fokus pada Klasifikasi Jalan (UU No. 22/2009).`);
             document.getElementById('aiProcessing').style.display = 'none';
             if (txt) showAIResult(txt); 
         }
         
         function showAIResult(txt) { 
-            document.getElementById('aiProcessing').style.display = 'none';
-            if (!txt) return; 
             document.getElementById('aiOutput').innerHTML = marked.parse(txt); 
             toggleModal('aiModal', true); 
         }
         function closeAIModal() { toggleModal('aiModal', false); }
-        function toggleMinMax(id, min) { const c = document.getElementById(id); if(min) { c.classList.remove('w-80'); c.classList.add('w-auto'); document.getElementById('mainFullContent').classList.add('hidden'); document.getElementById('mainMiniContent').classList.remove('hidden'); } else { c.classList.remove('w-auto'); c.classList.add('w-80'); document.getElementById('mainMiniContent').classList.add('hidden'); document.getElementById('mainFullContent').classList.remove('hidden'); } }
-        function resetFilter() { displayData=[...rawData]; updateUI(); document.getElementById('aiCommandInput').value=''; showToast("Filter dihapus, semua data ditampilkan.", 'info'); }
+        function toggleMinMax(id, min) { 
+            const c = document.getElementById(id); 
+            if(min) { document.getElementById('mainFullContent').classList.add('hidden'); document.getElementById('mainMiniContent').classList.remove('hidden'); } 
+            else { document.getElementById('mainMiniContent').classList.add('hidden'); document.getElementById('mainFullContent').classList.remove('hidden'); } 
+        }
+        function resetFilter() { displayData=[...rawData]; updateUI(); document.getElementById('aiCommandInput').value=''; showToast("Filter dihapus.", 'info'); }
         
-        const drawControl = new L.Control.Draw({ draw: { polyline:{metric:true}, polygon:{showArea:true}, rectangle:{showArea:true}, circle:false, marker:false }, edit: { featureGroup: drawnItems } }); map.addControl(drawControl);
+        const drawControl = new L.Control.Draw({ draw: { polyline:true, polygon:true, rectangle:true, circle:false, marker:false }, edit: { featureGroup: drawnItems } }); map.addControl(drawControl);
         map.on(L.Draw.Event.CREATED, e => { drawnItems.clearLayers(); drawnItems.addLayer(e.layer); currentDrawnLayer=e.layer; document.getElementById('measurePanel').classList.remove('hidden'); updateMeasure(e.layer); });
-        map.on(L.Draw.Event.EDITED, e => { e.layers.eachLayer(l => updateMeasure(l)); });
-        map.on(L.Draw.Event.DELETED, e => { if (drawnItems.getLayers().length === 0) clearDrawings(); });
         function updateMeasure(l) { 
             let val=0, unit='km'; 
             if (l instanceof L.Polyline) { 
                 const lls = l.getLatLngs().flat(2); 
                 for(let i=0; i<lls.length-1; i++) val += lls[i].distanceTo(lls[i+1]);
                 val = (val/1000).toFixed(2);
-            } else if (l instanceof L.Polygon || l instanceof L.Rectangle) {
-                 // Calculate area in square kilometers
-                // This now correctly uses the imported L.GeometryUtil.geodesicArea
-                val = L.GeometryUtil.geodesicArea(l.getLatLngs().flat(2)) / 1000000;
-                val = val.toFixed(2);
+            } else if (l instanceof L.Polygon) {
+                val = (L.GeometryUtil.geodesicArea(l.getLatLngs().flat(2)) / 1000000).toFixed(2);
                 unit = 'km²';
             }
             document.getElementById('measureResult').innerText = val; 
@@ -1183,9 +1105,9 @@
         function clearDrawings() { drawnItems.clearLayers(); currentDrawnLayer=null; document.getElementById('measurePanel').classList.add('hidden'); }
         let activeDragEl=null, initialX, initialY; 
         const dragOffsets = {'controlContainer':{x:0,y:0}, 'measurePanel':{x:0,y:0}, 'routeInfoPanel':{x:0,y:0}};
-        document.addEventListener("mousedown", e => { let h = e.target.closest('.draggable-header'); if(!h || e.target.closest('button') || e.target.closest('input')) return; const id = h.getAttribute('data-target'); if(id) { activeDragEl = document.getElementById(id); initialX = e.clientX - dragOffsets[id].x; initialY = e.clientY - dragOffsets[id].y; } });
+        document.addEventListener("mousedown", e => { let h = e.target.closest('.draggable-header'); if(!h) return; const id = h.getAttribute('data-target'); if(id) { activeDragEl = document.getElementById(id); initialX = e.clientX - dragOffsets[id].x; initialY = e.clientY - dragOffsets[id].y; } });
         document.addEventListener("mouseup", () => activeDragEl=null);
-        document.addEventListener("mousemove", e => { if(activeDragEl) { e.preventDefault(); const x = e.clientX - initialX; const y = e.clientY - initialY; dragOffsets[activeDragEl.id] = {x,y}; activeDragEl.style.transform = `translate3d(${x}px, ${y}px, 0)`; } });
+        document.addEventListener("mousemove", e => { if(activeDragEl) { const x = e.clientX - initialX; const y = e.clientY - initialY; dragOffsets[activeDragEl.id] = {x,y}; activeDragEl.style.transform = `translate3d(${x}px, ${y}px, 0)`; } });
     </script>
 </body>
 </html>
