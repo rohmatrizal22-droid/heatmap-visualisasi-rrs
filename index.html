@@ -217,7 +217,7 @@
         <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
             <div class="p-4 border-b border-blue-100 bg-blue-50 flex justify-between items-center">
                 <h3 class="font-bold text-blue-900"><i class="fa-solid fa-list-check text-blue-600 mr-2"></i> Kelola Data</h3>
-                <button onclick="toggleModal('dataManagerModal', false)" class="text-gray-400 hover:text-red-500 transition-colors"><i class="fa-solid fa-times"></i></button>
+                <button onclick="toggleModal('dataManagerModal', false)" class="text-gray-400 hover:text-red-500 transition-colors"><i class="fa-solid fa-times text-xl"></i></button>
             </div>
             <div class="p-4 flex-1 overflow-hidden flex flex-col">
                 <div class="flex justify-between items-center mb-3">
@@ -803,12 +803,15 @@
                 return val;
             }
             
-            // Tangani String Tanggal (YYYY-MM-DD atau ISO)
+            // Tangani String Tanggal
             if (typeof val === 'string') {
-                // Regex untuk deteksi YYYY-MM-DD atau YYYY/MM/DD, opsional dengan waktu
-                let dateMatch = val.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(\s\d{2}:\d{2}:\d{2})?$/);
-                if (dateMatch) {
-                    const [_, y, m, d, time] = dateMatch;
+                // 1. Jika sudah DD/MM/YYYY, biarkan saja
+                if (val.match(/^\d{2}\/\d{2}\/\d{4}/)) return val;
+
+                // 2. Jika format YYYY-MM-DD atau ISO, ubah ke DD/MM/YYYY
+                let isoMatch = val.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(\s\d{2}:\d{2}:\d{2})?$/);
+                if (isoMatch) {
+                    const [_, y, m, d, time] = isoMatch;
                     return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}${time || ''}`;
                 }
             }
