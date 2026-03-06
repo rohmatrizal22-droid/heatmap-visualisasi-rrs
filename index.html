@@ -641,20 +641,25 @@
             if (json.length === 0) { showToast("File kosong atau tidak dapat dibaca.", 'error'); resetUpload(); return; }
             let latKey, lonKey, combinedKey;
             const keys = Object.keys(json[0] || {});
+            
+            // Perbaikan Deteksi Kolom Gabungan (seperti 'latlong' atau 'Lat, Long Start')
             combinedKey = keys.find(k => {
-                const kl = k.toLowerCase();
-                return kl.includes('lat') && (kl.includes('lon') || kl.includes('lng')) && kl.includes(',');
+                const kl = k.toLowerCase().replace(/[\s_]/g, '');
+                return kl === 'latlong' || kl === 'latlng' || (kl.includes('lat') && (kl.includes('lon') || kl.includes('lng')));
             });
+
             if (!combinedKey) {
                 latKey = keys.find(k => k.toLowerCase() === 'lat' || k.toLowerCase() === 'latitude' || k.toLowerCase().startsWith('lat'));
                 lonKey = keys.find(k => k.toLowerCase() === 'lon' || k.toLowerCase() === 'lng' || k.toLowerCase() === 'longitude' || k.toLowerCase().startsWith('lon') || k.toLowerCase().startsWith('lng'));
             }
+            
             if (!latKey && !lonKey && !combinedKey) { 
                 combinedKey = keys.find(k => { 
                     const val = json[0][k]; 
-                    return typeof val === 'string' && val.trim().match(/^-?\d+(\.\d+)?\s*[,;]?\s*-?\d+(\.\d+)?$/); 
+                    return typeof val === 'string' && val.trim().match(/^-?\d+(\.\d+)?\s*[,;]\s*-?\d+(\.\d+)?$/); 
                 }); 
             }
+            
             if(!latKey && !lonKey && !combinedKey) return showToast("Kolom Latitude/Longitude tidak ditemukan.", 'error');
 
             json.forEach(row => {
@@ -785,16 +790,12 @@
             }
         }
 
-        // IMPROVED HELPER: Logic for Date Formatting to DD/MM/YYYY
         function formatValueForDisplay(val, key) {
             if (val === undefined || val === null) return "-";
             let kLower = key.toLowerCase();
-            
-            // Kolom yang kemungkinan berisi tanggal
             const isDateCol = kLower.includes('date') || kLower.includes('tanggal') || kLower.includes('gps time');
             const isTimeCol = kLower.includes('time') || kLower.includes('jam') || kLower.includes('sampai') || kLower.includes('dari');
 
-            // Tangani Angka Serial Excel (45xxx.x)
             if (typeof val === 'number') {
                 if (isDateCol && val > 25569 && val < 100000) return formatExcelSerialDate(val);
                 if (isTimeCol && val < 1) return formatExcelSerialTime(val);
@@ -802,20 +803,14 @@
                 if (val % 1 !== 0) return val.toFixed(5);
                 return val;
             }
-            
-            // Tangani String Tanggal
             if (typeof val === 'string') {
-                // 1. Jika sudah DD/MM/YYYY, biarkan saja
                 if (val.match(/^\d{2}\/\d{2}\/\d{4}/)) return val;
-
-                // 2. Jika format YYYY-MM-DD atau ISO, ubah ke DD/MM/YYYY
                 let isoMatch = val.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(\s\d{2}:\d{2}:\d{2})?$/);
                 if (isoMatch) {
                     const [_, y, m, d, time] = isoMatch;
                     return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}${time || ''}`;
                 }
             }
-            
             if (typeof val === 'object') return JSON.stringify(val);
             return val;
         }
@@ -851,7 +846,6 @@
             return content;
         }
 
-        // --- AI ---
         const apiKey = ""; 
 
         async function callAI(promptOrPayload, isStructured = false) {
