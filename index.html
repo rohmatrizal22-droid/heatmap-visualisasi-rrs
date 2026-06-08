@@ -813,8 +813,8 @@
 
         // --- SISTEM DETEKSI KENDARAAN BERHENTI ---
         function extractTimeSeconds(props) {
-            // Mencari kolom dengan kata kunci terkait waktu/jam/tanggal
-            let tKey = Object.keys(props).find(k => /jam|waktu|time/i.test(k));
+            // Mencari kolom dengan kata kunci terkait waktu/jam/tanggal (Prioritas GPS Time)
+            let tKey = Object.keys(props).find(k => /gps time/i.test(k)) || Object.keys(props).find(k => /jam|waktu|time/i.test(k));
             let dKey = Object.keys(props).find(k => /tanggal|date/i.test(k));
             let timeVal = tKey ? props[tKey] : null;
             let dateVal = dKey ? props[dKey] : null;
@@ -856,6 +856,8 @@
             // THRESHOLD BERHENTI: Jika selisih lebih dari atau sama dengan 2 Menit (120 Detik)
             if (durationSec >= 120) { 
                 let mins = Math.round(durationSec / 60);
+                let tKey = Object.keys(first.props).find(k => /gps time/i.test(k)) || Object.keys(first.props).find(k => /jam|waktu|time/i.test(k));
+                let timeStr = tKey ? formatValueForDisplay(first.props[tKey], tKey) : '-';
                 
                 // Buat Marker Merah untuk titik berhenti
                 let stopMarker = L.circleMarker([first.lat, first.lng], {
@@ -866,8 +868,9 @@
                     <div class="text-center font-sans p-1 min-w-[160px]">
                         <i class="fa-solid fa-circle-stop text-red-500 text-3xl mb-1"></i><br>
                         <b class="text-slate-800 text-sm">Kendaraan Berhenti</b><br>
-                        <div class="bg-red-50 border border-red-100 p-1.5 rounded mt-1.5 mb-1.5 shadow-sm">
-                            <span class="text-xs text-red-700 font-bold">Durasi: ${mins} Menit</span>
+                        <div class="bg-red-50 border border-red-100 p-1.5 rounded mt-1.5 mb-1.5 shadow-sm text-left">
+                            <span class="text-xs text-red-700 font-bold block border-b border-red-100 pb-1 mb-1">Mulai: ${timeStr}</span>
+                            <span class="text-xs text-red-700 font-bold block">Durasi: ${mins} Menit</span>
                         </div>
                         <span class="text-[10px] text-slate-500 font-mono">Koor: ${first.lat.toFixed(5)}, ${first.lng.toFixed(5)}</span>
                     </div>
@@ -906,12 +909,43 @@
                 // --- ALGORITMA DETEKSI TITIK BERHENTI PADA GARIS ---
                 let currentCluster = [];
                 let validTimeFound = false;
+                let isLowVoltage = false; // State untuk voltase
                 
                 for(let i=0; i<displayData.length; i++) {
                     let p = displayData[i];
                     p._sec = extractTimeSeconds(p.props); // Ekstrak detik dari data jam excel
                     if (p._sec > 0) validTimeFound = true; // Tandai jika dataset punya info jam yang valid
                     
+                    // --- DETEKSI PENURUNAN VOLTASE (< 20V) ---
+                    let vKey = Object.keys(p.props).find(k => /ext battery/i.test(k));
+                    if (vKey) {
+                        let voltage = parseFloat(p.props[vKey]);
+                        if (!isNaN(voltage)) {
+                            // Tandai titik saat pertama kali voltase drop di bawah 20V
+                            if (voltage < 20 && !isLowVoltage) {
+                                isLowVoltage = true;
+                                let tKey = Object.keys(p.props).find(k => /gps time/i.test(k)) || Object.keys(p.props).find(k => /jam|waktu|time/i.test(k));
+                                let timeStr = tKey ? formatValueForDisplay(p.props[tKey], tKey) : '-';
+
+                                let voltMarker = L.circleMarker([p.lat, p.lng], { radius: 7, fillColor: '#eab308', color: '#fff', weight: 2, fillOpacity: 1 });
+                                voltMarker.bindPopup(`
+                                    <div class="text-center font-sans p-1 min-w-[160px]">
+                                        <i class="fa-solid fa-car-battery text-yellow-500 text-3xl mb-1"></i><br>
+                                        <b class="text-slate-800 text-sm">Penurunan Voltase</b><br>
+                                        <div class="bg-yellow-50 border border-yellow-100 p-1.5 rounded mt-1.5 mb-1.5 shadow-sm text-left">
+                                            <span class="text-xs text-yellow-700 font-bold block border-b border-yellow-100 pb-1 mb-1">Waktu: ${timeStr}</span>
+                                            <span class="text-xs text-yellow-700 font-bold block">Voltase: ${voltage} V</span>
+                                        </div>
+                                        <span class="text-[10px] text-slate-500 font-mono">Koor: ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</span>
+                                    </div>
+                                `);
+                                voltMarker.addTo(activeLayer);
+                            } else if (voltage >= 20) {
+                                isLowVoltage = false; // Reset jika voltase kembali normal
+                            }
+                        }
+                    }
+
                     if (currentCluster.length === 0) {
                         currentCluster.push(p);
                     } else {
