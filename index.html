@@ -220,9 +220,15 @@
                 <button onclick="toggleModal('dataManagerModal', false)" class="text-gray-400 hover:text-red-500 transition-colors"><i class="fa-solid fa-times text-xl"></i></button>
             </div>
             <div class="p-4 flex-1 overflow-hidden flex flex-col">
-                <div class="flex justify-between items-center mb-3">
-                    <span class="text-xs text-slate-500 font-bold">Total: <span id="managerCount">0</span></span>
-                    <button onclick="clearAllData()" class="text-xs bg-red-100 text-red-600 px-3 py-1.5 rounded font-bold hover:bg-red-200 transition-colors">Hapus Semua</button>
+                <div class="flex flex-col sm:flex-row justify-between items-center mb-3 gap-2">
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <span class="text-xs text-slate-500 font-bold whitespace-nowrap">Total: <span id="managerCount">0</span></span>
+                        <div class="relative w-full sm:w-64">
+                            <i class="fa-solid fa-search absolute left-2.5 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" id="managerSearchInput" placeholder="Filter waktu, data, dll..." class="w-full pl-8 p-1.5 text-xs border border-slate-300 rounded-md focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" oninput="filterManagerData(this.value)">
+                        </div>
+                    </div>
+                    <button onclick="clearAllData()" class="text-xs bg-red-100 text-red-600 px-3 py-1.5 rounded font-bold hover:bg-red-200 transition-colors whitespace-nowrap">Hapus Semua</button>
                 </div>
                 <div class="data-table-container flex-1 custom-scrollbar">
                     <table class="data-table" id="mainDataTable"></table>
@@ -277,6 +283,18 @@
                         <span class="text-slate-500 font-medium" id="dataCount">0 Data</span>
                         <button onclick="resetFilter()" class="text-red-500 hover:text-red-700 font-bold">Reset</button>
                     </div>
+                </div>
+
+                <!-- FILTER DATA MANUAL -->
+                <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100 space-y-2">
+                    <label class="text-[10px] font-bold text-indigo-800 uppercase flex items-center gap-1"><i class="fa-solid fa-filter"></i> Filter Data Peta</label>
+                    <div class="flex gap-2">
+                        <select id="mapFilterColumn" class="w-1/2 text-xs p-1.5 rounded border border-slate-200 bg-white focus:ring-1 focus:ring-indigo-500 outline-none">
+                            <option value="">- Kolom -</option>
+                        </select>
+                        <input type="text" id="mapFilterValue" placeholder="Kata kunci..." class="w-1/2 text-xs p-1.5 rounded border border-slate-200 bg-white focus:ring-1 focus:ring-indigo-500 outline-none" onkeypress="if(event.key==='Enter') applyMapFilter()">
+                    </div>
+                    <button onclick="applyMapFilter()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-1.5 rounded shadow transition-colors">Terapkan Filter</button>
                 </div>
 
                 <!-- NEW: MAP CLICK ACTIONS MENU -->
@@ -673,7 +691,7 @@
                 if(!isNaN(lat) && !isNaN(lng)) { newData.push({ lat: lat, lng: lng, props: row }); }
             });
 
-            if(newData.length > 0) { rawData = newData; displayData = [...rawData]; map.fitBounds(L.latLngBounds(newData.map(d=>[d.lat,d.lng])), { padding: [20, 20] }); updateUI(); toggleModal('dataEntryModal', false); } 
+            if(newData.length > 0) { rawData = newData; displayData = [...rawData]; map.fitBounds(L.latLngBounds(newData.map(d=>[d.lat,d.lng])), { padding: [20, 20] }); updateUI(); toggleModal('dataEntryModal', false); populateFilterColumns(); } 
             else showToast("Data tidak valid (tidak ada koordinat yang terdeteksi).", 'error');
         }
 
@@ -691,7 +709,13 @@
                 let row = { 'Latitude': lat, 'Longitude': lng, 'Tanggal': date, 'Jam': time, 'Kecepatan': spd, 'Driver': 'Simulasi' };
                 rawData.push({ lat: lat, lng: lng, props: row });
             }
-            displayData=[...rawData]; map.fitBounds(L.latLngBounds(rawData.map(d=>[d.lat,d.lng])), { padding: [20, 20] }); updateUI(); toggleModal('dataEntryModal', false);
+            displayData=[...rawData]; map.fitBounds(L.latLngBounds(rawData.map(d=>[d.lat,d.lng])), { padding: [20, 20] }); updateUI(); toggleModal('dataEntryModal', false); populateFilterColumns();
+        }
+
+        let managerFilterText = "";
+        function filterManagerData(val) {
+            managerFilterText = val;
+            openDataManager(1);
         }
 
         function openDataManager(page) {
@@ -699,38 +723,71 @@
             toggleModal('dataManagerModal', true);
             const table = document.getElementById('mainDataTable');
             table.innerHTML = '';
-            document.getElementById('managerCount').innerText = rawData.length;
-            if(rawData.length === 0) {
+            
+            // Logika Penyaringan Data Lokal (Hanya di tampilan kelola)
+            let filteredWithIndex = rawData.map((d, index) => ({...d, originalIndex: index}));
+            if (managerFilterText) {
+                const lowerQuery = managerFilterText.toLowerCase();
+                filteredWithIndex = filteredWithIndex.filter(d => {
+                    return Object.entries(d.props).some(([k, val]) => {
+                        const strVal = formatValueForDisplay(val, k);
+                        return strVal !== undefined && strVal !== null && strVal.toString().toLowerCase().includes(lowerQuery);
+                    });
+                });
+            }
+
+            document.getElementById('managerCount').innerText = filteredWithIndex.length;
+            
+            // Pertahankan teks pencarian jika modal tertutup lalu dibuka lagi
+            const searchInput = document.getElementById('managerSearchInput');
+            if (searchInput && searchInput.value !== managerFilterText) searchInput.value = managerFilterText;
+
+            if(filteredWithIndex.length === 0) {
                 document.getElementById('tableFooter').innerHTML = '<span class="text-slate-400 italic">Tidak ada data.</span>';
                 return;
             }
-            const headers = Object.keys(rawData[0].props);
+            
+            const headers = Object.keys(filteredWithIndex[0].props);
             let thead = '<thead><tr><th class="w-10">#</th>';
-            headers.forEach(h => thead += `<th>${h}</th>`);
+            headers.forEach(h => {
+                if(h !== '_sec') thead += `<th>${h}</th>`; // Menyembunyikan parameter kalkulasi internal
+            });
             thead += '<th class="w-10 text-center">Aksi</th></tr></thead>';
             table.innerHTML = thead;
+            
             let tbody = '<tbody>';
-            const totalPages = Math.ceil(rawData.length / itemsPerPage);
+            const totalPages = Math.ceil(filteredWithIndex.length / itemsPerPage);
             if (currentPage < 1) currentPage = 1;
             if (currentPage > totalPages) currentPage = totalPages;
+            
             const start = (currentPage - 1) * itemsPerPage;
-            const end = Math.min(start + itemsPerPage, rawData.length);
+            const end = Math.min(start + itemsPerPage, filteredWithIndex.length);
+            
             for(let i=start; i<end; i++) {
-                const d = rawData[i];
-                tbody += `<tr class="hover:bg-blue-50 cursor-pointer transition-colors" onclick="zoomToData(${i})" title="Klik untuk lihat di peta"><td class="text-gray-400 text-xs">${i+1}</td>`;
+                const d = filteredWithIndex[i];
+                const origIdx = d.originalIndex; // Gunakan index asli untuk fitur Hapus dan Zoom
+                tbody += `<tr class="hover:bg-blue-50 cursor-pointer transition-colors" onclick="zoomToData(${origIdx})" title="Klik untuk lihat di peta"><td class="text-gray-400 text-xs">${i+1}</td>`;
                 headers.forEach(h => {
-                    let val = formatValueForDisplay(d.props[h], h);
-                    tbody += `<td>${val !== undefined ? val : '-'}</td>`;
+                    if(h !== '_sec') {
+                        let val = formatValueForDisplay(d.props[h], h);
+                        tbody += `<td>${val !== undefined ? val : '-'}</td>`;
+                    }
                 });
-                tbody += `<td class="text-center" onclick="event.stopPropagation()"><i class="fa-solid fa-trash-can btn-delete-row cursor-pointer text-red-500" onclick="deleteRow(${i})"></i></td></tr>`;
+                tbody += `<td class="text-center" onclick="event.stopPropagation()"><i class="fa-solid fa-trash-can btn-delete-row cursor-pointer text-red-500" onclick="deleteRow(${origIdx})"></i></td></tr>`;
             }
             tbody += '</tbody>';
             table.innerHTML += tbody;
+            
+            // Footer dengan input Halaman untuk melompat langsung
             const footer = document.getElementById('tableFooter');
             footer.innerHTML = `
-                <div class="flex justify-center items-center gap-4">
+                <div class="flex justify-center items-center gap-3 mt-3 pb-2">
                     <button onclick="openDataManager(${currentPage - 1})" ${currentPage === 1 ? 'disabled class="text-slate-300 cursor-not-allowed"' : 'class="text-blue-600 hover:text-blue-800 font-bold"'}><i class="fa-solid fa-chevron-left"></i> Prev</button>
-                    <span class="text-xs font-bold text-slate-600">Hal ${currentPage} / ${totalPages}</span>
+                    <span class="text-xs font-bold text-slate-600 flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1 rounded-full shadow-sm">
+                        Halaman 
+                        <input type="number" min="1" max="${totalPages}" value="${currentPage}" onchange="openDataManager(parseInt(this.value))" class="w-14 text-center border border-slate-300 rounded py-0.5 text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"> 
+                        dari ${totalPages}
+                    </span>
                     <button onclick="openDataManager(${currentPage + 1})" ${currentPage === totalPages ? 'disabled class="text-slate-300 cursor-not-allowed"' : 'class="text-blue-600 hover:text-blue-800 font-bold"'} >Next <i class="fa-solid fa-chevron-right"></i></button>
                 </div>
             `;
@@ -750,13 +807,80 @@
         }
 
         function clearAllData() { 
-            if(confirm("Apakah Anda yakin ingin menghapus SEMUA data?")) { rawData=[]; displayData=[]; openDataManager(1); updateUI(); showToast("Semua data dihapus.", 'info'); } 
+            if(confirm("Apakah Anda yakin ingin menghapus SEMUA data?")) { rawData=[]; displayData=[]; openDataManager(1); updateUI(); showToast("Semua data dihapus.", 'info'); populateFilterColumns(); } 
         }
 
         function updateUI() { 
             document.getElementById('dataCount').innerText = `${displayData.length} Data`; 
             renderLayer(); 
         }
+
+        // --- SISTEM DETEKSI KENDARAAN BERHENTI ---
+        function extractTimeSeconds(props) {
+            // Mencari kolom dengan kata kunci terkait waktu/jam/tanggal
+            let tKey = Object.keys(props).find(k => /jam|waktu|time/i.test(k));
+            let dKey = Object.keys(props).find(k => /tanggal|date/i.test(k));
+            let timeVal = tKey ? props[tKey] : null;
+            let dateVal = dKey ? props[dKey] : null;
+            let seconds = 0;
+            
+            // Format ISO datetime string
+            if (typeof dateVal === 'string' && dateVal.includes('T')) return new Date(dateVal).getTime() / 1000;
+            if (typeof timeVal === 'string' && timeVal.includes('T')) return new Date(timeVal).getTime() / 1000;
+            
+            // Waktu pecahan dari Excel (contoh: 0.5 = 12:00 PM)
+            if (typeof timeVal === 'number' && timeVal < 1) {
+                seconds = timeVal * 86400;
+            } else if (typeof timeVal === 'string') {
+                // Parsing format "HH:MM:SS"
+                let parts = timeVal.split(':');
+                if (parts.length >= 2) seconds = (parseInt(parts[0]) || 0) * 3600 + (parseInt(parts[1]) || 0) * 60 + (parseInt(parts[2]) || 0);
+            } else if (typeof timeVal === 'number' && timeVal >= 1) {
+               // Parsing Unix Timestamp (milliseconds atau seconds)
+               if (timeVal > 1000000000000) return timeVal / 1000; 
+               if (timeVal > 1000000000) return timeVal; 
+            }
+            
+            // Menambahkan offset tanggal dari Excel serial date (opsional)
+            if (typeof dateVal === 'number' && dateVal > 25569) seconds += (dateVal - 25569) * 86400; 
+            
+            return seconds;
+        }
+
+        function processClusterForStop(cluster, layer) {
+            if(cluster.length < 2) return;
+            let first = cluster[0];
+            let last = cluster[cluster.length - 1];
+            
+            // Jika tidak ada data waktu yang valid, abaikan
+            if(!first._sec || !last._sec) return;
+
+            let durationSec = last._sec - first._sec;
+            
+            // THRESHOLD BERHENTI: Jika selisih lebih dari atau sama dengan 2 Menit (120 Detik)
+            if (durationSec >= 120) { 
+                let mins = Math.round(durationSec / 60);
+                
+                // Buat Marker Merah untuk titik berhenti
+                let stopMarker = L.circleMarker([first.lat, first.lng], {
+                    radius: 7, fillColor: '#ef4444', color: '#fff', weight: 2, fillOpacity: 1
+                });
+                
+                let popupContent = `
+                    <div class="text-center font-sans p-1 min-w-[160px]">
+                        <i class="fa-solid fa-circle-stop text-red-500 text-3xl mb-1"></i><br>
+                        <b class="text-slate-800 text-sm">Kendaraan Berhenti</b><br>
+                        <div class="bg-red-50 border border-red-100 p-1.5 rounded mt-1.5 mb-1.5 shadow-sm">
+                            <span class="text-xs text-red-700 font-bold">Durasi: ${mins} Menit</span>
+                        </div>
+                        <span class="text-[10px] text-slate-500 font-mono">Koor: ${first.lat.toFixed(5)}, ${first.lng.toFixed(5)}</span>
+                    </div>
+                `;
+                stopMarker.bindPopup(popupContent);
+                stopMarker.addTo(layer);
+            }
+        }
+        // ----------------------------------------
 
         // --- RENDER ---
         function renderLayer() {
@@ -782,6 +906,36 @@
             } else if(mode === 'line') {
                 activeLayer = L.featureGroup();
                 L.polyline(displayData.map(d => [d.lat, d.lng]), { color: cf.color, weight: cf.weight, opacity: cf.opacity }).addTo(activeLayer);
+                
+                // --- ALGORITMA DETEKSI TITIK BERHENTI PADA GARIS ---
+                let currentCluster = [];
+                let validTimeFound = false;
+                
+                for(let i=0; i<displayData.length; i++) {
+                    let p = displayData[i];
+                    p._sec = extractTimeSeconds(p.props); // Ekstrak detik dari data jam excel
+                    if (p._sec > 0) validTimeFound = true; // Tandai jika dataset punya info jam yang valid
+                    
+                    if (currentCluster.length === 0) {
+                        currentCluster.push(p);
+                    } else {
+                        let first = currentCluster[0];
+                        let dist = L.latLng(first.lat, first.lng).distanceTo(L.latLng(p.lat, p.lng));
+                        
+                        // Jika kendaraan bergerak kurang dari radius 30 meter, anggap masih diam/berhenti
+                        if (dist < 30) { 
+                            currentCluster.push(p);
+                        } else {
+                            // Jarak sudah lebih dari 30 meter (bergerak), kalkulasikan waktu berhentinya
+                            if (validTimeFound) processClusterForStop(currentCluster, activeLayer);
+                            currentCluster = [p]; // Reset cluster untuk titik baru
+                        }
+                    }
+                }
+                // Cek cluster terakhir
+                if(currentCluster.length > 0 && validTimeFound) processClusterForStop(currentCluster, activeLayer);
+                // ---------------------------------------------------
+
                 activeLayer.addTo(map);
             } else {
                 activeLayer = L.featureGroup();
@@ -914,8 +1068,43 @@
         function showAIResult(txt) { document.getElementById('aiOutput').innerHTML = marked.parse(txt); toggleModal('aiModal', true); }
         function closeAIModal() { toggleModal('aiModal', false); }
         function toggleMinMax(id, min) { if(min) { document.getElementById('mainFullContent').classList.add('hidden'); document.getElementById('mainMiniContent').classList.remove('hidden'); } else { document.getElementById('mainMiniContent').classList.add('hidden'); document.getElementById('mainFullContent').classList.remove('hidden'); } }
-        function resetFilter() { displayData=[...rawData]; updateUI(); document.getElementById('aiCommandInput').value=''; showToast("Filter dihapus.", 'info'); }
+        function resetFilter() { 
+            displayData=[...rawData]; 
+            updateUI(); 
+            document.getElementById('aiCommandInput').value=''; 
+            const col = document.getElementById('mapFilterColumn');
+            if(col) col.value = '';
+            const val = document.getElementById('mapFilterValue');
+            if(val) val.value = '';
+            showToast("Filter dihapus.", 'info'); 
+        }
         
+        function populateFilterColumns() {
+            const select = document.getElementById('mapFilterColumn');
+            if(!select) return;
+            select.innerHTML = '<option value="">- Kolom -</option>';
+            if(rawData.length > 0) {
+                const keys = Object.keys(rawData[0].props);
+                keys.forEach(k => {
+                    if(k !== '_sec') select.innerHTML += `<option value="${k}">${k}</option>`;
+                });
+            }
+        }
+
+        function applyMapFilter() {
+            const col = document.getElementById('mapFilterColumn').value;
+            const val = document.getElementById('mapFilterValue').value.toLowerCase();
+            if(!col) return showToast("Pilih kolom untuk difilter", "error");
+            
+            displayData = rawData.filter(d => {
+                const pVal = d.props[col];
+                if(pVal === undefined || pVal === null) return false;
+                return pVal.toString().toLowerCase().includes(val);
+            });
+            updateUI();
+            showToast(`${displayData.length} data ditampilkan`, "success");
+        }
+
         const drawControl = new L.Control.Draw({ draw: { polyline:true, polygon:true, rectangle:true, circle:false, marker:false }, edit: { featureGroup: drawnItems } }); map.addControl(drawControl);
         map.on(L.Draw.Event.CREATED, e => { drawnItems.clearLayers(); drawnItems.addLayer(e.layer); currentDrawnLayer=e.layer; document.getElementById('measurePanel').classList.remove('hidden'); updateMeasure(e.layer); });
         function updateMeasure(l) { 
