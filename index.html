@@ -285,18 +285,6 @@
                     </div>
                 </div>
 
-                <!-- FILTER DATA MANUAL -->
-                <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100 space-y-2">
-                    <label class="text-[10px] font-bold text-indigo-800 uppercase flex items-center gap-1"><i class="fa-solid fa-filter"></i> Filter Data Peta</label>
-                    <div class="flex gap-2">
-                        <select id="mapFilterColumn" class="w-1/2 text-xs p-1.5 rounded border border-slate-200 bg-white focus:ring-1 focus:ring-indigo-500 outline-none">
-                            <option value="">- Kolom -</option>
-                        </select>
-                        <input type="text" id="mapFilterValue" placeholder="Kata kunci..." class="w-1/2 text-xs p-1.5 rounded border border-slate-200 bg-white focus:ring-1 focus:ring-indigo-500 outline-none" onkeypress="if(event.key==='Enter') applyMapFilter()">
-                    </div>
-                    <button onclick="applyMapFilter()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-1.5 rounded shadow transition-colors">Terapkan Filter</button>
-                </div>
-
                 <!-- NEW: MAP CLICK ACTIONS MENU -->
                 <div id="mapClickActions" class="bg-yellow-50 p-3 rounded-lg border border-yellow-200 space-y-2 hidden">
                     <label class="text-[10px] font-bold text-yellow-800 uppercase flex items-center gap-1"><i class="fa-solid fa-crosshairs"></i> Koordinat Peta</label>
@@ -312,9 +300,17 @@
                     <button onclick="resetMapClickActions()" class="w-full text-[10px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 py-1 rounded">Reset Aksi Peta</button>
                 </div>
 
-                <!-- Map Mode Info -->
-                <div class="text-xs text-slate-500 text-center font-medium bg-slate-100 p-1.5 rounded border border-slate-200">
-                    Peta Dasar: <span class="text-blue-600">Satelit Hybrid (Google)</span>
+                <!-- Base Map Selection -->
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1.5">Jenis Peta</label>
+                    <div class="relative">
+                        <select id="baseMapMode" onchange="changeBaseMap()" class="w-full bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none appearance-none">
+                            <option value="google_sat">Satelit Hybrid</option>
+                            <option value="google_road">Jalan Raya (Roadmap)</option>
+                            <option value="google_terrain">Geografis (Terrain)</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down absolute right-3 top-3 text-slate-400 text-xs pointer-events-none"></i>
+                    </div>
                 </div>
 
                 <!-- Visual Mode -->
@@ -691,7 +687,7 @@
                 if(!isNaN(lat) && !isNaN(lng)) { newData.push({ lat: lat, lng: lng, props: row }); }
             });
 
-            if(newData.length > 0) { rawData = newData; displayData = [...rawData]; map.fitBounds(L.latLngBounds(newData.map(d=>[d.lat,d.lng])), { padding: [20, 20] }); updateUI(); toggleModal('dataEntryModal', false); populateFilterColumns(); } 
+            if(newData.length > 0) { rawData = newData; displayData = [...rawData]; map.fitBounds(L.latLngBounds(newData.map(d=>[d.lat,d.lng])), { padding: [20, 20] }); updateUI(); toggleModal('dataEntryModal', false); } 
             else showToast("Data tidak valid (tidak ada koordinat yang terdeteksi).", 'error');
         }
 
@@ -709,7 +705,7 @@
                 let row = { 'Latitude': lat, 'Longitude': lng, 'Tanggal': date, 'Jam': time, 'Kecepatan': spd, 'Driver': 'Simulasi' };
                 rawData.push({ lat: lat, lng: lng, props: row });
             }
-            displayData=[...rawData]; map.fitBounds(L.latLngBounds(rawData.map(d=>[d.lat,d.lng])), { padding: [20, 20] }); updateUI(); toggleModal('dataEntryModal', false); populateFilterColumns();
+            displayData=[...rawData]; map.fitBounds(L.latLngBounds(rawData.map(d=>[d.lat,d.lng])), { padding: [20, 20] }); updateUI(); toggleModal('dataEntryModal', false);
         }
 
         let managerFilterText = "";
@@ -807,7 +803,7 @@
         }
 
         function clearAllData() { 
-            if(confirm("Apakah Anda yakin ingin menghapus SEMUA data?")) { rawData=[]; displayData=[]; openDataManager(1); updateUI(); showToast("Semua data dihapus.", 'info'); populateFilterColumns(); } 
+            if(confirm("Apakah Anda yakin ingin menghapus SEMUA data?")) { rawData=[]; displayData=[]; openDataManager(1); updateUI(); showToast("Semua data dihapus.", 'info'); } 
         }
 
         function updateUI() { 
@@ -1072,37 +1068,15 @@
             displayData=[...rawData]; 
             updateUI(); 
             document.getElementById('aiCommandInput').value=''; 
-            const col = document.getElementById('mapFilterColumn');
-            if(col) col.value = '';
-            const val = document.getElementById('mapFilterValue');
-            if(val) val.value = '';
             showToast("Filter dihapus.", 'info'); 
         }
         
-        function populateFilterColumns() {
-            const select = document.getElementById('mapFilterColumn');
-            if(!select) return;
-            select.innerHTML = '<option value="">- Kolom -</option>';
-            if(rawData.length > 0) {
-                const keys = Object.keys(rawData[0].props);
-                keys.forEach(k => {
-                    if(k !== '_sec') select.innerHTML += `<option value="${k}">${k}</option>`;
-                });
+        function changeBaseMap() {
+            const selected = document.getElementById('baseMapMode').value;
+            for (let key in baseLayers) {
+                map.removeLayer(baseLayers[key]);
             }
-        }
-
-        function applyMapFilter() {
-            const col = document.getElementById('mapFilterColumn').value;
-            const val = document.getElementById('mapFilterValue').value.toLowerCase();
-            if(!col) return showToast("Pilih kolom untuk difilter", "error");
-            
-            displayData = rawData.filter(d => {
-                const pVal = d.props[col];
-                if(pVal === undefined || pVal === null) return false;
-                return pVal.toString().toLowerCase().includes(val);
-            });
-            updateUI();
-            showToast(`${displayData.length} data ditampilkan`, "success");
+            baseLayers[selected].addTo(map);
         }
 
         const drawControl = new L.Control.Draw({ draw: { polyline:true, polygon:true, rectangle:true, circle:false, marker:false }, edit: { featureGroup: drawnItems } }); map.addControl(drawControl);
