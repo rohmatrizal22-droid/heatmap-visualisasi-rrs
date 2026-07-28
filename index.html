@@ -321,7 +321,7 @@
                             <option value="point">📍 Titik (Cluster) - Ringan</option>
                             <option value="heatmap">🔥 Heatmap (Density)</option>
                             <option value="circle">⭕ Lingkaran (Radius)</option>
-                            <option value="line">📈 Garis (Jalur)</option>
+                            <option value="line">📈 Garis (Jalur + Deteksi Berhenti)</option>
                         </select>
                         <i class="fa-solid fa-chevron-down absolute right-3 top-3 text-slate-400 text-xs pointer-events-none"></i>
                     </div>
@@ -572,8 +572,8 @@
             toggleModal('routingModal', true); 
         }
 
-        // --- FUNCTIONS ---
-        function getApiKey() { return ""; }
+        // --- CONFIG & SETTINGS ---
+        function getApiKey() { return localStorage.getItem('gemini_api_key') || ""; }
         function saveApiKey() { const key = document.getElementById('apiKeyInput').value.trim(); if(key) { localStorage.setItem('gemini_api_key', key); showToast("API Key tersimpan!", 'success'); } }
         function toggleApiKeyVisibility() { const input = document.getElementById('apiKeyInput'); const icon = document.getElementById('eyeIcon'); if(input.type === 'password') { input.type='text'; icon.className='fa-solid fa-eye-slash'; } else { input.type='password'; icon.className='fa-solid fa-eye'; } }
         function openSettings() { toggleModal('settingsModal', true); switchStyleTab('point'); }
@@ -628,7 +628,7 @@
 
         function resetStyles() { styleConfig = JSON.parse(JSON.stringify(defaultStyles)); const t = document.querySelector('.setting-tab-active').id.replace('tab-', ''); if(t!=='api') renderStyleControls(t); renderLayer(); }
 
-        // --- DATA ---
+        // --- DATA PROCESSING ---
         function toggleModal(id, show) {
             const m = document.getElementById(id);
             if(show) { m.classList.remove('hidden'); setTimeout(()=>m.classList.remove('opacity-0'),10); }
@@ -656,7 +656,6 @@
             let latKey, lonKey, combinedKey;
             const keys = Object.keys(json[0] || {});
             
-            // Perbaikan Deteksi Kolom Gabungan (seperti 'latlong' atau 'Lat, Long Start')
             combinedKey = keys.find(k => {
                 const kl = k.toLowerCase().replace(/[\s_]/g, '');
                 return kl === 'latlong' || kl === 'latlng' || (kl.includes('lat') && (kl.includes('lon') || kl.includes('lng')));
@@ -692,6 +691,7 @@
         }
 
         function resetUpload() { document.getElementById('fileInput').value = ''; document.getElementById('fileInfo').classList.add('hidden'); document.getElementById('dropZone').classList.remove('hidden'); }
+        
         function generateDummyData() {
             rawData=[]; const clat=-6.200, clng=106.816;
             for(let i=0; i<1000; i++) {
@@ -700,7 +700,7 @@
                 let lat = clat + (randStdNormal * 0.05); let lng = clng + ((Math.random() - 0.5) * 0.08);
                 let spd = Math.random() > 0.2 ? Math.floor(Math.random()*100) : 0;
                 let h = Math.floor(i/20); let m = (i%60);
-                let time = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+                let time = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
                 let date = '2023-11-22';
                 let row = { 'Latitude': lat, 'Longitude': lng, 'Tanggal': date, 'Jam': time, 'Kecepatan': spd, 'Driver': 'Simulasi' };
                 rawData.push({ lat: lat, lng: lng, props: row });
@@ -720,7 +720,6 @@
             const table = document.getElementById('mainDataTable');
             table.innerHTML = '';
             
-            // Logika Penyaringan Data Lokal (Hanya di tampilan kelola)
             let filteredWithIndex = rawData.map((d, index) => ({...d, originalIndex: index}));
             if (managerFilterText) {
                 const lowerQuery = managerFilterText.toLowerCase();
@@ -734,7 +733,6 @@
 
             document.getElementById('managerCount').innerText = filteredWithIndex.length;
             
-            // Pertahankan teks pencarian jika modal tertutup lalu dibuka lagi
             const searchInput = document.getElementById('managerSearchInput');
             if (searchInput && searchInput.value !== managerFilterText) searchInput.value = managerFilterText;
 
@@ -746,7 +744,7 @@
             const headers = Object.keys(filteredWithIndex[0].props);
             let thead = '<thead><tr><th class="w-10">#</th>';
             headers.forEach(h => {
-                if(h !== '_sec') thead += `<th>${h}</th>`; // Menyembunyikan parameter kalkulasi internal
+                if(h !== '_sec') thead += `<th>${h}</th>`;
             });
             thead += '<th class="w-10 text-center">Aksi</th></tr></thead>';
             table.innerHTML = thead;
@@ -761,7 +759,7 @@
             
             for(let i=start; i<end; i++) {
                 const d = filteredWithIndex[i];
-                const origIdx = d.originalIndex; // Gunakan index asli untuk fitur Hapus dan Zoom
+                const origIdx = d.originalIndex;
                 tbody += `<tr class="hover:bg-blue-50 cursor-pointer transition-colors" onclick="zoomToData(${origIdx})" title="Klik untuk lihat di peta"><td class="text-gray-400 text-xs">${i+1}</td>`;
                 headers.forEach(h => {
                     if(h !== '_sec') {
@@ -774,7 +772,6 @@
             tbody += '</tbody>';
             table.innerHTML += tbody;
             
-            // Footer dengan input Halaman untuk melompat langsung
             const footer = document.getElementById('tableFooter');
             footer.innerHTML = `
                 <div class="flex justify-center items-center gap-3 mt-3 pb-2">
@@ -811,77 +808,193 @@
             renderLayer(); 
         }
 
-        // --- SISTEM DETEKSI KENDARAAN BERHENTI ---
+        // --- SISTEM PEMBACA WAKTU AKURAT (WAKTU DETIK) ---
         function extractTimeSeconds(props) {
-            // Mencari kolom dengan kata kunci terkait waktu/jam/tanggal (Prioritas GPS Time)
+            if (!props) return 0;
             let tKey = Object.keys(props).find(k => /gps time/i.test(k)) || Object.keys(props).find(k => /jam|waktu|time/i.test(k));
             let dKey = Object.keys(props).find(k => /tanggal|date/i.test(k));
             let timeVal = tKey ? props[tKey] : null;
             let dateVal = dKey ? props[dKey] : null;
             let seconds = 0;
             
-            // Format ISO datetime string
             if (typeof dateVal === 'string' && dateVal.includes('T')) return new Date(dateVal).getTime() / 1000;
             if (typeof timeVal === 'string' && timeVal.includes('T')) return new Date(timeVal).getTime() / 1000;
             
-            // Waktu pecahan dari Excel (contoh: 0.5 = 12:00 PM)
             if (typeof timeVal === 'number' && timeVal < 1) {
                 seconds = timeVal * 86400;
             } else if (typeof timeVal === 'string') {
-                // Parsing format "HH:MM:SS"
-                let parts = timeVal.split(':');
+                let parts = timeVal.trim().split(':');
                 if (parts.length >= 2) seconds = (parseInt(parts[0]) || 0) * 3600 + (parseInt(parts[1]) || 0) * 60 + (parseInt(parts[2]) || 0);
             } else if (typeof timeVal === 'number' && timeVal >= 1) {
-               // Parsing Unix Timestamp (milliseconds atau seconds)
                if (timeVal > 1000000000000) return timeVal / 1000; 
                if (timeVal > 1000000000) return timeVal; 
             }
             
-            // Menambahkan offset tanggal dari Excel serial date (opsional)
             if (typeof dateVal === 'number' && dateVal > 25569) seconds += (dateVal - 25569) * 86400; 
             
             return seconds;
         }
 
-        function processClusterForStop(cluster, layer) {
-            if(cluster.length < 2) return;
-            let first = cluster[0];
-            let last = cluster[cluster.length - 1];
-            
-            // Jika tidak ada data waktu yang valid, abaikan
-            if(!first._sec || !last._sec) return;
+        // --- LOGIKA PENDETEKSI BERHENTI SENSITIF & MULTI-STOP AGGREGATION ---
+        function detectAndRenderStops(data, layer) {
+            if (!data || data.length < 2) return;
 
-            let durationSec = last._sec - first._sec;
-            
-            // THRESHOLD BERHENTI: Jika selisih lebih dari atau sama dengan 2 Menit (120 Detik)
-            if (durationSec >= 120) { 
-                let mins = Math.round(durationSec / 60);
-                let tKey = Object.keys(first.props).find(k => /gps time/i.test(k)) || Object.keys(first.props).find(k => /jam|waktu|time/i.test(k));
-                let timeStr = tKey ? formatValueForDisplay(first.props[tKey], tKey) : '-';
-                
-                // Buat Marker Merah untuk titik berhenti
-                let stopMarker = L.circleMarker([first.lat, first.lng], {
-                    radius: 7, fillColor: '#ef4444', color: '#fff', weight: 2, fillOpacity: 1
+            // CONFIGURATION THRESHOLDS
+            const SPEED_STOP_LIMIT = 3;       // km/h (speed <= 3 is considered stopped)
+            const MIN_STOP_DURATION = 60;     // Minimum stop duration in seconds (1 minute)
+            const MERGE_DIST_METERS = 50;     // Max distance to combine nearby stops (50 meters)
+            const MERGE_GAP_SEC = 180;        // Max gap time between stops to combine (180 seconds / 3 minutes)
+
+            let microStops = [];
+            let currentGroup = [];
+
+            // STEP 1: Detect stationary micro-intervals
+            for (let i = 0; i < data.length; i++) {
+                let p = data[i];
+                p._sec = extractTimeSeconds(p.props);
+
+                let spdKey = Object.keys(p.props).find(k => /kecepatan|speed|spd/i.test(k));
+                let speed = spdKey !== undefined ? parseFloat(p.props[spdKey]) : null;
+
+                let isStationary = false;
+                if (speed !== null && !isNaN(speed)) {
+                    isStationary = (speed <= SPEED_STOP_LIMIT);
+                } else if (i > 0) {
+                    let prev = data[i - 1];
+                    let distMeters = L.latLng(prev.lat, prev.lng).distanceTo(L.latLng(p.lat, p.lng));
+                    isStationary = (distMeters < 5); 
+                } else {
+                    isStationary = true;
+                }
+
+                if (isStationary && p._sec > 0) {
+                    currentGroup.push(p);
+                } else {
+                    if (currentGroup.length >= 2) {
+                        let startTime = currentGroup[0]._sec;
+                        let endTime = currentGroup[currentGroup.length - 1]._sec;
+                        let duration = endTime - startTime;
+
+                        if (duration >= MIN_STOP_DURATION) {
+                            microStops.push({
+                                startTime: startTime,
+                                endTime: endTime,
+                                duration: duration,
+                                startPoint: currentGroup[0],
+                                endPoint: currentGroup[currentGroup.length - 1],
+                                lat: currentGroup[0].lat,
+                                lng: currentGroup[0].lng
+                            });
+                        }
+                    }
+                    currentGroup = [];
+                }
+            }
+
+            if (currentGroup.length >= 2) {
+                let startTime = currentGroup[0]._sec;
+                let endTime = currentGroup[currentGroup.length - 1]._sec;
+                let duration = endTime - startTime;
+                if (duration >= MIN_STOP_DURATION) {
+                    microStops.push({
+                        startTime: startTime,
+                        endTime: endTime,
+                        duration: duration,
+                        startPoint: currentGroup[0],
+                        endPoint: currentGroup[currentGroup.length - 1],
+                        lat: currentGroup[0].lat,
+                        lng: currentGroup[0].lng
+                    });
+                }
+            }
+
+            if (microStops.length === 0) return;
+
+            // STEP 2: Aggregate nearby micro-stops into Macro Stops
+            let macroStops = [];
+            let currentMacro = null;
+
+            for (let stop of microStops) {
+                if (!currentMacro) {
+                    currentMacro = {
+                        subStops: [stop],
+                        startTime: stop.startTime,
+                        endTime: stop.endTime,
+                        totalDuration: stop.duration,
+                        lat: stop.lat,
+                        lng: stop.lng,
+                        firstPointProps: stop.startPoint.props
+                    };
+                } else {
+                    let prevStop = currentMacro.subStops[currentMacro.subStops.length - 1];
+                    let dist = L.latLng(prevStop.lat, prevStop.lng).distanceTo(L.latLng(stop.lat, stop.lng));
+                    let gap = stop.startTime - prevStop.endTime;
+
+                    if (dist <= MERGE_DIST_METERS && gap <= MERGE_GAP_SEC) {
+                        currentMacro.subStops.push(stop);
+                        currentMacro.endTime = stop.endTime;
+                        currentMacro.totalDuration += stop.duration;
+                    } else {
+                        macroStops.push(currentMacro);
+                        currentMacro = {
+                            subStops: [stop],
+                            startTime: stop.startTime,
+                            endTime: stop.endTime,
+                            totalDuration: stop.duration,
+                            lat: stop.lat,
+                            lng: stop.lng,
+                            firstPointProps: stop.startPoint.props
+                        };
+                    }
+                }
+            }
+            if (currentMacro) macroStops.push(currentMacro);
+
+            // STEP 3: Render Markers
+            macroStops.forEach(macro => {
+                let totalMins = Math.round(macro.totalDuration / 60);
+                if (totalMins < 1) totalMins = 1;
+
+                let subStopCount = macro.subStops.length;
+                let tKey = Object.keys(macro.firstPointProps).find(k => /gps time/i.test(k)) || Object.keys(macro.firstPointProps).find(k => /jam|waktu|time/i.test(k));
+                let startTimeStr = tKey ? formatValueForDisplay(macro.firstPointProps[tKey], tKey) : '-';
+
+                let stopMarker = L.circleMarker([macro.lat, macro.lng], {
+                    radius: subStopCount > 1 ? 9 : 7,
+                    fillColor: subStopCount > 1 ? '#b91c1c' : '#ef4444', 
+                    color: '#ffffff',
+                    weight: 2,
+                    fillOpacity: 1
                 });
-                
+
+                let aggregatedBadge = subStopCount > 1 
+                    ? `<div class="bg-red-100 border border-red-300 text-red-800 text-[10px] font-bold px-1.5 py-0.5 rounded mb-1.5">
+                        <i class="fa-solid fa-layer-group mr-1"></i> Gabungan ${subStopCount}x Pemberhentian
+                       </div>`
+                    : '';
+
                 let popupContent = `
-                    <div class="text-center font-sans p-1 min-w-[160px]">
-                        <i class="fa-solid fa-circle-stop text-red-500 text-3xl mb-1"></i><br>
+                    <div class="text-center font-sans p-1 min-w-[180px]">
+                        <i class="fa-solid fa-circle-stop text-red-600 text-3xl mb-1"></i><br>
                         <b class="text-slate-800 text-sm">Kendaraan Berhenti</b><br>
-                        <div class="bg-red-50 border border-red-100 p-1.5 rounded mt-1.5 mb-1.5 shadow-sm text-left">
-                            <span class="text-xs text-red-700 font-bold block border-b border-red-100 pb-1 mb-1">Mulai: ${timeStr}</span>
-                            <span class="text-xs text-red-700 font-bold block">Durasi: ${mins} Menit</span>
+                        ${aggregatedBadge}
+                        <div class="bg-red-50 border border-red-100 p-2 rounded mt-1.5 mb-1.5 shadow-sm text-left">
+                            <span class="text-xs text-red-800 font-bold block border-b border-red-100 pb-1 mb-1">
+                                <i class="fa-regular fa-clock mr-1"></i> Mulai: ${startTimeStr}
+                            </span>
+                            <span class="text-xs text-red-800 font-bold block">
+                                <i class="fa-solid fa-hourglass-half mr-1"></i> Total Berhenti: ${totalMins} Menit
+                            </span>
                         </div>
-                        <span class="text-[10px] text-slate-500 font-mono">Koor: ${first.lat.toFixed(5)}, ${first.lng.toFixed(5)}</span>
+                        <span class="text-[10px] text-slate-500 font-mono">Koor: ${macro.lat.toFixed(5)}, ${macro.lng.toFixed(5)}</span>
                     </div>
                 `;
                 stopMarker.bindPopup(popupContent);
                 stopMarker.addTo(layer);
-            }
+            });
         }
-        // ----------------------------------------
 
-        // --- RENDER ---
+        // --- RENDER VISUAL LAYER ---
         function renderLayer() {
             if(map.getSize().x === 0) { setTimeout(renderLayer, 200); return; }
             if(activeLayer) { map.removeLayer(activeLayer); activeLayer=null; }
@@ -906,22 +1019,14 @@
                 activeLayer = L.featureGroup();
                 L.polyline(displayData.map(d => [d.lat, d.lng]), { color: cf.color, weight: cf.weight, opacity: cf.opacity }).addTo(activeLayer);
                 
-                // --- ALGORITMA DETEKSI TITIK BERHENTI PADA GARIS ---
-                let currentCluster = [];
-                let validTimeFound = false;
-                let isLowVoltage = false; // State untuk voltase
-                
+                // Deteksi Voltase Drop
+                let isLowVoltage = false;
                 for(let i=0; i<displayData.length; i++) {
                     let p = displayData[i];
-                    p._sec = extractTimeSeconds(p.props); // Ekstrak detik dari data jam excel
-                    if (p._sec > 0) validTimeFound = true; // Tandai jika dataset punya info jam yang valid
-                    
-                    // --- DETEKSI PENURUNAN VOLTASE (< 20V) ---
                     let vKey = Object.keys(p.props).find(k => /ext battery/i.test(k));
                     if (vKey) {
                         let voltage = parseFloat(p.props[vKey]);
                         if (!isNaN(voltage)) {
-                            // Tandai titik saat pertama kali voltase drop di bawah 20V
                             if (voltage < 20 && !isLowVoltage) {
                                 isLowVoltage = true;
                                 let tKey = Object.keys(p.props).find(k => /gps time/i.test(k)) || Object.keys(p.props).find(k => /jam|waktu|time/i.test(k));
@@ -941,30 +1046,14 @@
                                 `);
                                 voltMarker.addTo(activeLayer);
                             } else if (voltage >= 20) {
-                                isLowVoltage = false; // Reset jika voltase kembali normal
+                                isLowVoltage = false;
                             }
                         }
                     }
-
-                    if (currentCluster.length === 0) {
-                        currentCluster.push(p);
-                    } else {
-                        let first = currentCluster[0];
-                        let dist = L.latLng(first.lat, first.lng).distanceTo(L.latLng(p.lat, p.lng));
-                        
-                        // Jika kendaraan bergerak kurang dari radius 30 meter, anggap masih diam/berhenti
-                        if (dist < 30) { 
-                            currentCluster.push(p);
-                        } else {
-                            // Jarak sudah lebih dari 30 meter (bergerak), kalkulasikan waktu berhentinya
-                            if (validTimeFound) processClusterForStop(currentCluster, activeLayer);
-                            currentCluster = [p]; // Reset cluster untuk titik baru
-                        }
-                    }
                 }
-                // Cek cluster terakhir
-                if(currentCluster.length > 0 && validTimeFound) processClusterForStop(currentCluster, activeLayer);
-                // ---------------------------------------------------
+
+                // EKSEKUSI DETEKSI BERHENTI DENGAN ALGORITMA BARU
+                detectAndRenderStops(displayData, activeLayer);
 
                 activeLayer.addTo(map);
             } else {
@@ -1030,10 +1119,13 @@
             return content;
         }
 
-        const apiKey = ""; 
-
+        // --- AI INTEGRATION ---
         async function callAI(promptOrPayload, isStructured = false) {
-            const key = apiKey || "ENV_KEY"; 
+            const key = getApiKey();
+            if (!key) {
+                showToast("Masukkan Gemini API Key di Pengaturan sistem terlebih dahulu.", "error");
+                return null;
+            }
             document.getElementById('aiProcessing').style.display = 'flex';
             let payload = isStructured ? promptOrPayload : { contents: [{parts:[{text: promptOrPayload}]}] };
             if (!isStructured && !promptOrPayload.includes("Analisis titik:")) payload.tools = [{ "google_search": {} }];
@@ -1113,15 +1205,20 @@
             baseLayers[selected].addTo(map);
         }
 
+        // --- DRAWING & MEASUREMENTS ---
         const drawControl = new L.Control.Draw({ draw: { polyline:true, polygon:true, rectangle:true, circle:false, marker:false }, edit: { featureGroup: drawnItems } }); map.addControl(drawControl);
         map.on(L.Draw.Event.CREATED, e => { drawnItems.clearLayers(); drawnItems.addLayer(e.layer); currentDrawnLayer=e.layer; document.getElementById('measurePanel').classList.remove('hidden'); updateMeasure(e.layer); });
+        
         function updateMeasure(l) { 
             let val=0, unit='km'; 
             if (l instanceof L.Polyline) { l.getLatLngs().flat(2).forEach((ll, i, arr) => { if(i < arr.length-1) val += ll.distanceTo(arr[i+1]); }); val = (val/1000).toFixed(2); } 
             else if (l instanceof L.Polygon) { val = (L.GeometryUtil.geodesicArea(l.getLatLngs().flat(2)) / 1000000).toFixed(2); unit = 'km²'; }
             document.getElementById('measureResult').innerText = val; document.querySelector('#measurePanel .bg-green-50 span:last-child').innerText = unit.toUpperCase();
         }
+        
         function clearDrawings() { drawnItems.clearLayers(); currentDrawnLayer=null; document.getElementById('measurePanel').classList.add('hidden'); }
+        
+        // --- DRAGGABLE PANELS LOGIC ---
         let activeDragEl=null, initialX, initialY; const dragOffsets = {'controlContainer':{x:0,y:0}, 'measurePanel':{x:0,y:0}, 'routeInfoPanel':{x:0,y:0}};
         document.addEventListener("mousedown", e => { let h = e.target.closest('.draggable-header'); if(!h) return; const id = h.getAttribute('data-target'); if(id) { activeDragEl = document.getElementById(id); initialX = e.clientX - dragOffsets[id].x; initialY = e.clientY - dragOffsets[id].y; } });
         document.addEventListener("mouseup", () => activeDragEl=null);
