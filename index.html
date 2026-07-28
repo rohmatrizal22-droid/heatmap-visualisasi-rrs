@@ -377,7 +377,7 @@
         const defaultStyles = {
             point: { color: '#f97316', radius: 5, opacity: 0.9 },
             circle: { color: '#ef4444', radiusScale: 20, opacity: 0.5 },
-            line: { color: '#2563eb', weight: 4, opacity: 0.8 },
+            line: { color: '#2563eb', weight: 3, opacity: 0.8 },
             heatmap: { radius: 20, blur: 15, opacity: 0.7, max: 1.0 }
         };
         let styleConfig = JSON.parse(JSON.stringify(defaultStyles));
@@ -872,79 +872,13 @@
             return 0;
         }
 
-        // --- FUNGSI CARI TITIK DATA TERDEKAT DARI LOKASI KLIK GARIS ---
-        function findNearestDataPoint(clickedLatLng, data) {
-            let minDistance = Infinity;
-            let nearestPoint = null;
-            let nearestIndex = -1;
-
-            for (let i = 0; i < data.length; i++) {
-                let dist = clickedLatLng.distanceTo(L.latLng(data[i].lat, data[i].lng));
-                if (dist < minDistance) {
-                    minDistance = dist;
-                    nearestPoint = data[i];
-                    nearestIndex = i;
-                }
-            }
-            return { point: nearestPoint, index: nearestIndex, distance: minDistance };
-        }
-
-        // --- POPUP DETAIL SAAT GARIS DIKLIK ---
-        function createLineClickPopup(d, index) {
-            let tKey = Object.keys(d.props).find(k => /gps time|jam|waktu|time/i.test(k));
-            let timeStr = tKey ? formatValueForDisplay(d.props[tKey], tKey) : '-';
-
-            let spdKey = Object.keys(d.props).find(k => /kecepatan|speed|spd/i.test(k));
-            let speedVal = spdKey && d.props[spdKey] !== undefined ? d.props[spdKey] : '-';
-
-            let statusKey = Object.keys(d.props).find(k => /vehicle status|status|acc/i.test(k));
-            let statusVal = statusKey && d.props[statusKey] !== undefined ? String(d.props[statusKey]).trim().toUpperCase() : '-';
-
-            let content = `
-                <div class='font-sans text-left min-w-[210px]'>
-                    <div class="bg-blue-600 text-white p-2 -mx-3 -mt-3 mb-2.5 rounded-t text-center font-bold text-xs flex items-center justify-center gap-1.5 shadow">
-                        <i class="fa-solid fa-route"></i> Titik Lintasan (#${index + 1})
-                    </div>
-                    <div class="space-y-1.5 text-xs mb-2 bg-slate-50 p-2 rounded border border-slate-200">
-                        <div class="flex justify-between border-b border-slate-200 pb-1">
-                            <span class="text-slate-500 font-medium"><i class="fa-regular fa-clock text-blue-500 mr-1"></i>Waktu:</span>
-                            <b class="text-slate-800 font-mono">${timeStr}</b>
-                        </div>
-                        <div class="flex justify-between border-b border-slate-200 pb-1">
-                            <span class="text-slate-500 font-medium"><i class="fa-solid fa-gauge-high text-orange-500 mr-1"></i>Kecepatan:</span>
-                            <b class="text-blue-700 font-bold">${speedVal} km/jam</b>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-500 font-medium"><i class="fa-solid fa-power-off text-slate-400 mr-1"></i>Status Mesin:</span>
-                            <b class="${statusVal === 'OFF' ? 'text-red-600' : 'text-green-600'} font-bold">${statusVal}</b>
-                        </div>
-                    </div>
-            `;
-
-            for (const [key, value] of Object.entries(d.props)) {
-                if (!/time|jam|waktu|speed|kecepatan|status|lat|lon|plate|no/i.test(key) && key !== '_sec') {
-                    content += `<div class="flex justify-between text-[10px] text-slate-600 mb-0.5"><span class="text-slate-400">${key}:</span> <span class="font-medium text-slate-700">${formatValueForDisplay(value, key)}</span></div>`;
-                }
-            }
-
-            const dataStr = JSON.stringify(d.props).replace(/"/g, '&quot;');
-            content += `
-                <div class="mt-2.5 pt-2 border-t border-slate-100 flex gap-1">
-                    <a href="https://www.google.com/maps?q=&layer=c&cbll=${d.lat},${d.lng}" target="_blank" class="flex-1 bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold py-1.5 px-2 rounded text-center no-underline shadow transition-colors"><i class="fa-solid fa-street-view"></i> Street View</a>
-                    <button onclick='analyzeDataPoint(${d.lat}, ${d.lng}, ${dataStr})' class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1.5 px-2 rounded shadow transition-colors"><i class="fa-solid fa-robot"></i> AI Analisis</button>
-                </div>
-                <div class="text-[9px] text-slate-400 text-center font-mono mt-1.5">Koor: ${d.lat.toFixed(5)}, ${d.lng.toFixed(5)}</div>
-                </div>
-            `;
-            return content;
-        }
-
         // --- ALGORITMA SPATIAL-TEMPORAL PARKING CONSOLIDATION ---
         function detectAndRenderStops(data, layer) {
             if (!data || data.length < 2) return;
 
-            const SPEED_STOP_LIMIT = 3;          // km/jam
-            const MIN_STOP_DURATION = 60;        // Minimal durasi berhenti (60 detik)
+            // PARAMETER KONFIGURASI
+            const SPEED_STOP_LIMIT = 3;          // km/jam (Kecepatan <= 3 dianggap berhenti)
+            const MIN_STOP_DURATION = 60;        // Minimal durasi berhenti (60 detik = 1 menit)
             const STATIONARY_RADIUS_METERS = 60; // Radius toleransi area parkir yang sama (60 Meter)
 
             let stops = [];
@@ -974,18 +908,21 @@
                         let nextP = data[j];
                         nextP._sec = extractTimeSeconds(nextP.props);
 
+                        // Hitung jarak titik saat ini ke pusat titik awal berhenti (Anchor)
                         let distFromAnchor = L.latLng(stopAnchor.lat, stopAnchor.lng).distanceTo(L.latLng(nextP.lat, nextP.lng));
 
+                        // Jika jarak masih dalam radius area parkir (<= 60 meter), anggap masih di lokasi pemberhentian yang sama
                         if (distFromAnchor <= STATIONARY_RADIUS_METERS) {
                             let prevInStop = stopPoints[stopPoints.length - 1];
                             let gap = nextP._sec - prevInStop._sec;
-                            if (gap >= 120) { 
+                            if (gap >= 120) { // Catat jika ada jeda hilang sinyal > 2 menit
                                 gapSecTotal += gap;
                                 gapCount++;
                             }
                             stopPoints.push(nextP);
                             j++;
                         } else {
+                            // Kendaraan sudah berjalan keluar dari radius area parkir (> 60m)
                             break;
                         }
                     }
@@ -1013,12 +950,13 @@
                         });
                     }
 
-                    i = j;
+                    i = j; // Loncat ke titik setelah kendaraan meninggalkan area parkir
                 } else {
                     i++;
                 }
             }
 
+            // Tampilkan Marker Pemberhentian
             stops.forEach(s => {
                 let totalMins = Math.round(s.duration / 60);
                 if (totalMins < 1) totalMins = 1;
@@ -1088,21 +1026,8 @@
                 map.addLayer(activeLayer);
             } else if(mode === 'line') {
                 activeLayer = L.featureGroup();
+                L.polyline(displayData.map(d => [d.lat, d.lng]), { color: cf.color, weight: cf.weight, opacity: cf.opacity }).addTo(activeLayer);
                 
-                // GAMBAR POLYLINE
-                let lineCoords = displayData.map(d => [d.lat, d.lng]);
-                let mainPolyline = L.polyline(lineCoords, { color: cf.color, weight: cf.weight, opacity: cf.opacity }).addTo(activeLayer);
-                
-                // EVENT KLIK LANGSUNG PADA GARIS (LINE CLICK EVENT)
-                mainPolyline.on('click', function(e) {
-                    L.DomEvent.stopPropagation(e); // Mencegah popup klik peta biasa
-                    let res = findNearestDataPoint(e.latlng, displayData);
-                    if (res.point) {
-                        let content = createLineClickPopup(res.point, res.index);
-                        L.popup().setLatLng(e.latlng).setContent(content).openOn(map);
-                    }
-                });
-
                 // Deteksi Voltase Drop
                 let isLowVoltage = false;
                 for(let i=0; i<displayData.length; i++) {
