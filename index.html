@@ -690,7 +690,6 @@
                 displayData = [...rawData]; 
                 map.fitBounds(L.latLngBounds(newData.map(d=>[d.lat,d.lng])), { padding: [20, 20] }); 
                 
-                // Otomatis pindah ke Mode Garis agar fitur analisis langsung kelihatan
                 document.getElementById('viewMode').value = 'line';
                 updateUI(); 
                 toggleModal('dataEntryModal', false); 
@@ -826,7 +825,6 @@
 
             if (timeVal === null || timeVal === undefined) return 0;
 
-            // 1. Jika bertipe Angka Serial Excel
             if (typeof timeVal === 'number') {
                 if (timeVal > 1000000000000) return timeVal / 1000;
                 if (timeVal > 1000000000) return timeVal;
@@ -836,7 +834,6 @@
 
             let str = String(timeVal).trim();
 
-            // 2. Format DD/MM/YYYY HH:MM:SS atau DD-MM-YYYY HH:MM:SS (Sangat umum di Excel Indonesia/GPS)
             let dmyMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})/);
             if (dmyMatch) {
                 let day = parseInt(dmyMatch[1], 10);
@@ -848,7 +845,6 @@
                 return new Date(year, month, day, hrs, mins, secs).getTime() / 1000;
             }
 
-            // 3. Format YYYY-MM-DD HH:MM:SS atau YYYY/MM/DD HH:MM:SS
             let ymdMatch = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})/);
             if (ymdMatch) {
                 let year = parseInt(ymdMatch[1], 10);
@@ -860,7 +856,6 @@
                 return new Date(year, month, day, hrs, mins, secs).getTime() / 1000;
             }
 
-            // 4. Hanya Jam HH:MM:SS atau HH:MM
             let timeOnlyMatch = str.match(/(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
             if (timeOnlyMatch) {
                 let hrs = parseInt(timeOnlyMatch[1], 10);
@@ -871,39 +866,28 @@
                 return totalSec;
             }
 
-            // 5. Fallback Javascript Date Parser
             let parsed = Date.parse(str);
             if (!isNaN(parsed)) return parsed / 1000;
 
             return 0;
         }
 
-        // --- LOGIKA DETEKSI BERHENTI & GAP TIME ---
+        // --- ALGORITMA SPATIAL-TEMPORAL PARKING CONSOLIDATION ---
         function detectAndRenderStops(data, layer) {
             if (!data || data.length < 2) return;
 
             // PARAMETER KONFIGURASI
-            const SPEED_STOP_LIMIT = 3;       // km/jam (Kecepatan <= 3 = Berhenti)
-            const MIN_STOP_DURATION = 60;     // Minimal durasi berhenti (60 detik / 1 menit)
-            const MERGE_DIST_METERS = 50;     // Radius jarak gabungan (50 meter)
-            const MERGE_GAP_SEC = 180;        // Jeda waktu gabungan (3 menit)
-            const GAP_THRESHOLD_SEC = 120;    // Threshold GAP Time (Jeda antar baris > 2 menit)
+            const SPEED_STOP_LIMIT = 3;          // km/jam (Kecepatan <= 3 dianggap berhenti)
+            const MIN_STOP_DURATION = 60;        // Minimal durasi berhenti (60 detik = 1 menit)
+            const STATIONARY_RADIUS_METERS = 60; // Radius toleransi area parkir yang sama (60 Meter)
 
-            let microStops = [];
-            let currentGroup = [];
+            let stops = [];
+            let i = 0;
 
-            for (let i = 0; i < data.length; i++) {
+            while (i < data.length) {
                 let p = data[i];
                 p._sec = extractTimeSeconds(p.props);
 
-                let timeGapFromPrev = 0;
-                if (i > 0) {
-                    let prevP = data[i - 1];
-                    prevP._sec = prevP._sec || extractTimeSeconds(prevP.props);
-                    timeGapFromPrev = p._sec - prevP._sec;
-                }
-
-                // Cek Kecepatan & Status Kendaraan (OFF / ON)
                 let spdKey = Object.keys(p.props).find(k => /kecepatan|speed|spd/i.test(k));
                 let speed = spdKey !== undefined ? parseFloat(p.props[spdKey]) : null;
 
@@ -911,191 +895,104 @@
                 let statusVal = statusKey ? String(p.props[statusKey]).trim().toUpperCase() : "";
                 let isAccOff = (statusVal === "OFF" || statusVal === "0" || statusVal === "FALSE");
 
-                let isStationary = false;
-                if (isAccOff || (speed !== null && !isNaN(speed) && speed <= SPEED_STOP_LIMIT)) {
-                    isStationary = true;
-                } else if (i > 0) {
-                    let prev = data[i - 1];
-                    let distMeters = L.latLng(prev.lat, prev.lng).distanceTo(L.latLng(p.lat, p.lng));
-                    isStationary = (distMeters < 5); 
-                }
+                let isStartStationary = isAccOff || (speed !== null && !isNaN(speed) && speed <= SPEED_STOP_LIMIT);
 
-                if (isStationary && p._sec > 0) {
-                    currentGroup.push(p);
-                } else {
-                    // KONDISI KHUSUS GAP TIME: Jika titik sebelumnya diam/OFF dan sekarang mendadak jalan dengan GAP > 2 menit
-                    if (currentGroup.length >= 1 && i > 0 && timeGapFromPrev >= GAP_THRESHOLD_SEC) {
-                        let startTime = currentGroup[0]._sec;
-                        let endTime = p._sec; 
-                        let duration = endTime - startTime;
+                if (isStartStationary && p._sec > 0) {
+                    let stopAnchor = p;
+                    let stopPoints = [p];
+                    let gapSecTotal = 0;
+                    let gapCount = 0;
+                    let j = i + 1;
 
-                        if (duration >= MIN_STOP_DURATION) {
-                            let tKeyPrev = Object.keys(currentGroup[currentGroup.length - 1].props).find(k => /gps time|jam|waktu|time/i.test(k));
-                            let tKeyCurr = Object.keys(p.props).find(k => /gps time|jam|waktu|time/i.test(k));
+                    while (j < data.length) {
+                        let nextP = data[j];
+                        nextP._sec = extractTimeSeconds(nextP.props);
 
-                            microStops.push({
-                                startTime: startTime,
-                                endTime: endTime,
-                                duration: duration,
-                                hasGap: true,
-                                gapSec: timeGapFromPrev,
-                                gapStartStr: tKeyPrev ? formatValueForDisplay(currentGroup[currentGroup.length - 1].props[tKeyPrev], tKeyPrev) : '-',
-                                gapEndStr: tKeyCurr ? formatValueForDisplay(p.props[tKeyCurr], tKeyCurr) : '-',
-                                startPoint: currentGroup[0],
-                                endPoint: p,
-                                lat: currentGroup[0].lat,
-                                lng: currentGroup[0].lng
-                            });
+                        // Hitung jarak titik saat ini ke pusat titik awal berhenti (Anchor)
+                        let distFromAnchor = L.latLng(stopAnchor.lat, stopAnchor.lng).distanceTo(L.latLng(nextP.lat, nextP.lng));
+
+                        // Jika jarak masih dalam radius area parkir (<= 60 meter), anggap masih di lokasi pemberhentian yang sama
+                        if (distFromAnchor <= STATIONARY_RADIUS_METERS) {
+                            let prevInStop = stopPoints[stopPoints.length - 1];
+                            let gap = nextP._sec - prevInStop._sec;
+                            if (gap >= 120) { // Catat jika ada jeda hilang sinyal > 2 menit
+                                gapSecTotal += gap;
+                                gapCount++;
+                            }
+                            stopPoints.push(nextP);
+                            j++;
+                        } else {
+                            // Kendaraan sudah berjalan keluar dari radius area parkir (> 60m)
+                            break;
                         }
-                        currentGroup = [];
-                    } 
-                    // KONDISI NORMAL
-                    else if (currentGroup.length >= 2) {
-                        let startTime = currentGroup[0]._sec;
-                        let endTime = currentGroup[currentGroup.length - 1]._sec;
-                        let duration = endTime - startTime;
-
-                        if (duration >= MIN_STOP_DURATION) {
-                            microStops.push({
-                                startTime: startTime,
-                                endTime: endTime,
-                                duration: duration,
-                                hasGap: false,
-                                gapSec: 0,
-                                startPoint: currentGroup[0],
-                                endPoint: currentGroup[currentGroup.length - 1],
-                                lat: currentGroup[0].lat,
-                                lng: currentGroup[0].lng
-                            });
-                        }
-                        currentGroup = [];
-                    } else {
-                        currentGroup = [];
                     }
-                }
-            }
 
-            // Cek grup terakhir
-            if (currentGroup.length >= 2) {
-                let startTime = currentGroup[0]._sec;
-                let endTime = currentGroup[currentGroup.length - 1]._sec;
-                let duration = endTime - startTime;
-                if (duration >= MIN_STOP_DURATION) {
-                    microStops.push({
-                        startTime: startTime,
-                        endTime: endTime,
-                        duration: duration,
-                        hasGap: false,
-                        gapSec: 0,
-                        startPoint: currentGroup[0],
-                        endPoint: currentGroup[currentGroup.length - 1],
-                        lat: currentGroup[0].lat,
-                        lng: currentGroup[0].lng
-                    });
-                }
-            }
+                    let lastStopPoint = stopPoints[stopPoints.length - 1];
+                    let duration = lastStopPoint._sec - stopAnchor._sec;
 
-            if (microStops.length === 0) return;
+                    if (duration >= MIN_STOP_DURATION) {
+                        let tKeyStart = Object.keys(stopAnchor.props).find(k => /gps time|jam|waktu|time/i.test(k));
+                        let tKeyEnd = Object.keys(lastStopPoint.props).find(k => /gps time|jam|waktu|time/i.test(k));
 
-            // STEP 2: Penggabungan (Clustering)
-            let macroStops = [];
-            let currentMacro = null;
-
-            for (let stop of microStops) {
-                if (!currentMacro) {
-                    currentMacro = {
-                        subStops: [stop],
-                        startTime: stop.startTime,
-                        endTime: stop.endTime,
-                        totalDuration: stop.duration,
-                        hasGap: stop.hasGap,
-                        gapSec: stop.gapSec,
-                        gapStartStr: stop.gapStartStr,
-                        gapEndStr: stop.gapEndStr,
-                        lat: stop.lat,
-                        lng: stop.lng,
-                        firstPointProps: stop.startPoint.props
-                    };
-                } else {
-                    let prevStop = currentMacro.subStops[currentMacro.subStops.length - 1];
-                    let dist = L.latLng(prevStop.lat, prevStop.lng).distanceTo(L.latLng(stop.lat, stop.lng));
-                    let gap = stop.startTime - prevStop.endTime;
-
-                    if (dist <= MERGE_DIST_METERS && gap <= MERGE_GAP_SEC) {
-                        currentMacro.subStops.push(stop);
-                        currentMacro.endTime = stop.endTime;
-                        currentMacro.totalDuration += stop.duration;
-                        if (stop.hasGap) {
-                            currentMacro.hasGap = true;
-                            currentMacro.gapSec += stop.gapSec;
-                            currentMacro.gapStartStr = stop.gapStartStr;
-                            currentMacro.gapEndStr = stop.gapEndStr;
-                        }
-                    } else {
-                        macroStops.push(currentMacro);
-                        currentMacro = {
-                            subStops: [stop],
-                            startTime: stop.startTime,
-                            endTime: stop.endTime,
-                            totalDuration: stop.duration,
-                            hasGap: stop.hasGap,
-                            gapSec: stop.gapSec,
-                            gapStartStr: stop.gapStartStr,
-                            gapEndStr: stop.gapEndStr,
-                            lat: stop.lat,
-                            lng: stop.lng,
-                            firstPointProps: stop.startPoint.props
-                        };
+                        stops.push({
+                            startTime: stopAnchor._sec,
+                            endTime: lastStopPoint._sec,
+                            duration: duration,
+                            hasGap: gapCount > 0,
+                            gapSec: gapSecTotal,
+                            gapCount: gapCount,
+                            startStr: tKeyStart ? formatValueForDisplay(stopAnchor.props[tKeyStart], tKeyStart) : '-',
+                            endStr: tKeyEnd ? formatValueForDisplay(lastStopPoint.props[tKeyEnd], tKeyEnd) : '-',
+                            lat: stopAnchor.lat,
+                            lng: stopAnchor.lng,
+                            anchorProps: stopAnchor.props,
+                            pointCount: stopPoints.length
+                        });
                     }
+
+                    i = j; // Loncat ke titik setelah kendaraan meninggalkan area parkir
+                } else {
+                    i++;
                 }
             }
-            if (currentMacro) macroStops.push(currentMacro);
 
-            // STEP 3: Tampilkan Marker Pemberhentian
-            macroStops.forEach(macro => {
-                let totalMins = Math.round(macro.totalDuration / 60);
+            // Tampilkan Marker Pemberhentian
+            stops.forEach(s => {
+                let totalMins = Math.round(s.duration / 60);
                 if (totalMins < 1) totalMins = 1;
 
-                let subStopCount = macro.subStops.length;
-                let tKey = Object.keys(macro.firstPointProps).find(k => /gps time/i.test(k)) || Object.keys(macro.firstPointProps).find(k => /jam|waktu|time/i.test(k));
-                let startTimeStr = tKey ? formatValueForDisplay(macro.firstPointProps[tKey], tKey) : '-';
-
-                let stopMarker = L.circleMarker([macro.lat, macro.lng], {
-                    radius: macro.hasGap ? 10 : (subStopCount > 1 ? 9 : 7),
-                    fillColor: macro.hasGap ? '#d97706' : (subStopCount > 1 ? '#b91c1c' : '#ef4444'), 
+                let stopMarker = L.circleMarker([s.lat, s.lng], {
+                    radius: s.hasGap ? 10 : 8,
+                    fillColor: s.hasGap ? '#d97706' : '#ef4444', 
                     color: '#ffffff',
                     weight: 2,
                     fillOpacity: 1
                 });
 
-                let aggregatedBadge = subStopCount > 1 
-                    ? `<div class="bg-red-100 border border-red-300 text-red-800 text-[10px] font-bold px-1.5 py-0.5 rounded mb-1">
-                        <i class="fa-solid fa-layer-group mr-1"></i> Gabungan ${subStopCount}x Pemberhentian
-                       </div>`
-                    : '';
-
-                let gapBadge = macro.hasGap 
+                let gapBadge = s.hasGap 
                     ? `<div class="bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-bold px-2 py-1 rounded mb-1.5 text-left">
-                        <i class="fa-solid fa-satellite-dish text-amber-600 mr-1"></i> <b>GAP Time Terdeteksi:</b> ${(macro.gapSec / 60).toFixed(1)} Menit<br>
-                        <span class="text-[9px] text-amber-700 font-normal">Jeda dari ${macro.gapStartStr} s/d ${macro.gapEndStr}</span>
+                        <i class="fa-solid fa-satellite-dish text-amber-600 mr-1"></i> <b>Termasuk ${s.gapCount}x GAP Time</b> (${(s.gapSec / 60).toFixed(1)} Menit)<br>
+                        <span class="text-[9px] text-amber-700 font-normal">Sinyal terputus/off saat di lokasi parkir</span>
                        </div>`
                     : '';
 
                 let popupContent = `
-                    <div class="text-center font-sans p-1 min-w-[200px]">
-                        <i class="fa-solid fa-circle-stop ${macro.hasGap ? 'text-amber-600' : 'text-red-600'} text-3xl mb-1"></i><br>
-                        <b class="text-slate-800 text-sm">Kendaraan Berhenti</b><br>
-                        ${aggregatedBadge}
+                    <div class="text-center font-sans p-1 min-w-[210px]">
+                        <i class="fa-solid fa-circle-stop ${s.hasGap ? 'text-amber-600' : 'text-red-600'} text-3xl mb-1"></i><br>
+                        <b class="text-slate-800 text-sm">Kendaraan Berhenti / Parkir</b><br>
                         ${gapBadge}
                         <div class="bg-red-50 border border-red-100 p-2 rounded mt-1 mb-1.5 shadow-sm text-left">
                             <span class="text-xs text-red-800 font-bold block border-b border-red-100 pb-1 mb-1">
-                                <i class="fa-regular fa-clock mr-1"></i> Mulai: ${startTimeStr}
+                                <i class="fa-regular fa-clock mr-1"></i> Mulai: ${s.startStr}
+                            </span>
+                            <span class="text-xs text-red-800 font-bold block border-b border-red-100 pb-1 mb-1">
+                                <i class="fa-solid fa-flag-checkered mr-1"></i> Selesai: ${s.endStr}
                             </span>
                             <span class="text-xs text-red-800 font-bold block">
-                                <i class="fa-solid fa-hourglass-half mr-1"></i> Total Berhenti: ${totalMins} Menit
+                                <i class="fa-solid fa-hourglass-half mr-1"></i> Total Durasi: ${totalMins} Menit
                             </span>
                         </div>
-                        <span class="text-[10px] text-slate-500 font-mono">Koor: ${macro.lat.toFixed(5)}, ${macro.lng.toFixed(5)}</span>
+                        <span class="text-[10px] text-slate-500 font-mono">Koor: ${s.lat.toFixed(5)}, ${s.lng.toFixed(5)}</span>
                     </div>
                 `;
                 stopMarker.bindPopup(popupContent);
@@ -1124,7 +1021,6 @@
                 });
                 activeLayer.addLayers(markers);
 
-                // Jalankan deteksi berhenti di mode titik juga
                 detectAndRenderStops(displayData, activeLayer);
 
                 map.addLayer(activeLayer);
@@ -1165,7 +1061,7 @@
                     }
                 }
 
-                // EKSEKUSI DETEKSI BERHENTI DENGAN ALGORITMA BARU + GAP TIME
+                // EKSEKUSI DETEKSI BERHENTI DENGAN ALGORITMA SPATIAL PARKING CONSOLIDATION
                 detectAndRenderStops(displayData, activeLayer);
 
                 activeLayer.addTo(map);
