@@ -75,7 +75,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
-    <!-- MARKER CLUSTER CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -318,10 +317,10 @@
                     <label class="text-xs font-bold text-slate-600 block mb-1.5">Mode Visualisasi</label>
                     <div class="relative">
                         <select id="viewMode" onchange="renderLayer()" class="w-full bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none appearance-none">
+                            <option value="line" selected>📈 Garis (Jalur + Deteksi Berhenti & GAP)</option>
                             <option value="point">📍 Titik (Cluster) - Ringan</option>
                             <option value="heatmap">🔥 Heatmap (Density)</option>
                             <option value="circle">⭕ Lingkaran (Radius)</option>
-                            <option value="line">📈 Garis (Jalur + Deteksi Berhenti & GAP)</option>
                         </select>
                         <i class="fa-solid fa-chevron-down absolute right-3 top-3 text-slate-400 text-xs pointer-events-none"></i>
                     </div>
@@ -686,7 +685,17 @@
                 if(!isNaN(lat) && !isNaN(lng)) { newData.push({ lat: lat, lng: lng, props: row }); }
             });
 
-            if(newData.length > 0) { rawData = newData; displayData = [...rawData]; map.fitBounds(L.latLngBounds(newData.map(d=>[d.lat,d.lng])), { padding: [20, 20] }); updateUI(); toggleModal('dataEntryModal', false); } 
+            if(newData.length > 0) { 
+                rawData = newData; 
+                displayData = [...rawData]; 
+                map.fitBounds(L.latLngBounds(newData.map(d=>[d.lat,d.lng])), { padding: [20, 20] }); 
+                
+                // Otomatis pindah ke Mode Garis agar fitur analisis langsung kelihatan
+                document.getElementById('viewMode').value = 'line';
+                updateUI(); 
+                toggleModal('dataEntryModal', false); 
+                showToast("Data berhasil dimuat! Mode visualisasi otomatis diatur ke Garis (Jalur).", "success");
+            } 
             else showToast("Data tidak valid (tidak ada koordinat yang terdeteksi).", 'error');
         }
 
@@ -700,9 +709,8 @@
                 let lat = clat + (randStdNormal * 0.05); let lng = clng + ((Math.random() - 0.5) * 0.08);
                 let spd = Math.random() > 0.2 ? Math.floor(Math.random()*100) : 0;
                 let h = Math.floor(i/20); let m = (i%60);
-                let time = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
-                let date = '2023-11-22';
-                let row = { 'Latitude': lat, 'Longitude': lng, 'Tanggal': date, 'Jam': time, 'Kecepatan': spd, 'Driver': 'Simulasi' };
+                let time = `28/07/2026 ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
+                let row = { 'Latitude': lat, 'Longitude': lng, 'Time': time, 'Speed (km/h)': spd, 'Vehicle Status': spd === 0 ? 'OFF' : 'ON', 'Plate': 'B 9267 SFW' };
                 rawData.push({ lat: lat, lng: lng, props: row });
             }
             displayData=[...rawData]; map.fitBounds(L.latLngBounds(rawData.map(d=>[d.lat,d.lng])), { padding: [20, 20] }); updateUI(); toggleModal('dataEntryModal', false);
@@ -808,40 +816,75 @@
             renderLayer(); 
         }
 
-        // --- SISTEM PEMBACA WAKTU AKURAT (WAKTU DETIK) ---
+        // --- SISTEM PEMBACA WAKTU & TANGGAL SUPER PRESISI ---
         function extractTimeSeconds(props) {
             if (!props) return 0;
             let tKey = Object.keys(props).find(k => /gps time/i.test(k)) || Object.keys(props).find(k => /jam|waktu|time/i.test(k));
             let dKey = Object.keys(props).find(k => /tanggal|date/i.test(k));
             let timeVal = tKey ? props[tKey] : null;
             let dateVal = dKey ? props[dKey] : null;
-            let seconds = 0;
-            
-            if (typeof dateVal === 'string' && dateVal.includes('T')) return new Date(dateVal).getTime() / 1000;
-            if (typeof timeVal === 'string' && timeVal.includes('T')) return new Date(timeVal).getTime() / 1000;
-            
-            if (typeof timeVal === 'number' && timeVal < 1) {
-                seconds = timeVal * 86400;
-            } else if (typeof timeVal === 'string') {
-                let parts = timeVal.trim().split(':');
-                if (parts.length >= 2) seconds = (parseInt(parts[0]) || 0) * 3600 + (parseInt(parts[1]) || 0) * 60 + (parseInt(parts[2]) || 0);
-            } else if (typeof timeVal === 'number' && timeVal >= 1) {
-               if (timeVal > 1000000000000) return timeVal / 1000; 
-               if (timeVal > 1000000000) return timeVal; 
+
+            if (timeVal === null || timeVal === undefined) return 0;
+
+            // 1. Jika bertipe Angka Serial Excel
+            if (typeof timeVal === 'number') {
+                if (timeVal > 1000000000000) return timeVal / 1000;
+                if (timeVal > 1000000000) return timeVal;
+                if (timeVal > 25569) return Math.round((timeVal - 25569) * 86400);
+                if (timeVal < 1) return Math.round(timeVal * 86400);
             }
-            
-            if (typeof dateVal === 'number' && dateVal > 25569) seconds += (dateVal - 25569) * 86400; 
-            
-            return seconds;
+
+            let str = String(timeVal).trim();
+
+            // 2. Format DD/MM/YYYY HH:MM:SS atau DD-MM-YYYY HH:MM:SS (Sangat umum di Excel Indonesia/GPS)
+            let dmyMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})/);
+            if (dmyMatch) {
+                let day = parseInt(dmyMatch[1], 10);
+                let month = parseInt(dmyMatch[2], 10) - 1;
+                let year = parseInt(dmyMatch[3], 10);
+                let hrs = parseInt(dmyMatch[4], 10);
+                let mins = parseInt(dmyMatch[5], 10);
+                let secs = parseInt(dmyMatch[6], 10);
+                return new Date(year, month, day, hrs, mins, secs).getTime() / 1000;
+            }
+
+            // 3. Format YYYY-MM-DD HH:MM:SS atau YYYY/MM/DD HH:MM:SS
+            let ymdMatch = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})/);
+            if (ymdMatch) {
+                let year = parseInt(ymdMatch[1], 10);
+                let month = parseInt(ymdMatch[2], 10) - 1;
+                let day = parseInt(ymdMatch[3], 10);
+                let hrs = parseInt(ymdMatch[4], 10);
+                let mins = parseInt(ymdMatch[5], 10);
+                let secs = parseInt(ymdMatch[6], 10);
+                return new Date(year, month, day, hrs, mins, secs).getTime() / 1000;
+            }
+
+            // 4. Hanya Jam HH:MM:SS atau HH:MM
+            let timeOnlyMatch = str.match(/(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
+            if (timeOnlyMatch) {
+                let hrs = parseInt(timeOnlyMatch[1], 10);
+                let mins = parseInt(timeOnlyMatch[2], 10);
+                let secs = parseInt(timeOnlyMatch[3] || 0, 10);
+                let totalSec = hrs * 3600 + mins * 60 + secs;
+                if (typeof dateVal === 'number' && dateVal > 25569) totalSec += Math.round((dateVal - 25569) * 86400);
+                return totalSec;
+            }
+
+            // 5. Fallback Javascript Date Parser
+            let parsed = Date.parse(str);
+            if (!isNaN(parsed)) return parsed / 1000;
+
+            return 0;
         }
 
-        // --- LOGIKA PENDETEKSI BERHENTI SENSITIF & MULTI-STOP AGGREGATION + DETEKSI GAP TIME ---
+        // --- LOGIKA DETEKSI BERHENTI & GAP TIME ---
         function detectAndRenderStops(data, layer) {
             if (!data || data.length < 2) return;
 
             // PARAMETER KONFIGURASI
             const SPEED_STOP_LIMIT = 3;       // km/jam (Kecepatan <= 3 = Berhenti)
-            const MIN_STOP_DURATION = 60;     // Minimal durasi berhenti (60 detik)
+            const MIN_STOP_DURATION = 60;     // Minimal durasi berhenti (60 detik / 1 menit)
             const MERGE_DIST_METERS = 50;     // Radius jarak gabungan (50 meter)
             const MERGE_GAP_SEC = 180;        // Jeda waktu gabungan (3 menit)
             const GAP_THRESHOLD_SEC = 120;    // Threshold GAP Time (Jeda antar baris > 2 menit)
@@ -853,7 +896,6 @@
                 let p = data[i];
                 p._sec = extractTimeSeconds(p.props);
 
-                // Hitung selisih waktu dari titik sebelumnya (Cek GAP Time)
                 let timeGapFromPrev = 0;
                 if (i > 0) {
                     let prevP = data[i - 1];
@@ -861,18 +903,21 @@
                     timeGapFromPrev = p._sec - prevP._sec;
                 }
 
+                // Cek Kecepatan & Status Kendaraan (OFF / ON)
                 let spdKey = Object.keys(p.props).find(k => /kecepatan|speed|spd/i.test(k));
                 let speed = spdKey !== undefined ? parseFloat(p.props[spdKey]) : null;
 
+                let statusKey = Object.keys(p.props).find(k => /vehicle status|status|acc|engine/i.test(k));
+                let statusVal = statusKey ? String(p.props[statusKey]).trim().toUpperCase() : "";
+                let isAccOff = (statusVal === "OFF" || statusVal === "0" || statusVal === "FALSE");
+
                 let isStationary = false;
-                if (speed !== null && !isNaN(speed)) {
-                    isStationary = (speed <= SPEED_STOP_LIMIT);
+                if (isAccOff || (speed !== null && !isNaN(speed) && speed <= SPEED_STOP_LIMIT)) {
+                    isStationary = true;
                 } else if (i > 0) {
                     let prev = data[i - 1];
                     let distMeters = L.latLng(prev.lat, prev.lng).distanceTo(L.latLng(p.lat, p.lng));
                     isStationary = (distMeters < 5); 
-                } else {
-                    isStationary = true;
                 }
 
                 if (isStationary && p._sec > 0) {
@@ -881,7 +926,7 @@
                     // KONDISI KHUSUS GAP TIME: Jika titik sebelumnya diam/OFF dan sekarang mendadak jalan dengan GAP > 2 menit
                     if (currentGroup.length >= 1 && i > 0 && timeGapFromPrev >= GAP_THRESHOLD_SEC) {
                         let startTime = currentGroup[0]._sec;
-                        let endTime = p._sec; // Jadikan waktu p (saat mulai bergerak) sebagai akhir berhenti
+                        let endTime = p._sec; 
                         let duration = endTime - startTime;
 
                         if (duration >= MIN_STOP_DURATION) {
@@ -904,7 +949,7 @@
                         }
                         currentGroup = [];
                     } 
-                    // KONDISI NORMAL: Berhenti standar tanpa GAP ekstrem
+                    // KONDISI NORMAL
                     else if (currentGroup.length >= 2) {
                         let startTime = currentGroup[0]._sec;
                         let endTime = currentGroup[currentGroup.length - 1]._sec;
@@ -930,7 +975,7 @@
                 }
             }
 
-            // Cek grup terakhir jika data berakhir dalam posisi berhenti
+            // Cek grup terakhir
             if (currentGroup.length >= 2) {
                 let startTime = currentGroup[0]._sec;
                 let endTime = currentGroup[currentGroup.length - 1]._sec;
@@ -952,7 +997,7 @@
 
             if (microStops.length === 0) return;
 
-            // STEP 2: Penggabungan (Clustering) jika lokasi berdekatan
+            // STEP 2: Penggabungan (Clustering)
             let macroStops = [];
             let currentMacro = null;
 
@@ -1006,7 +1051,7 @@
             }
             if (currentMacro) macroStops.push(currentMacro);
 
-            // STEP 3: Tampilkan Marker Pemberhentian pada Peta
+            // STEP 3: Tampilkan Marker Pemberhentian
             macroStops.forEach(macro => {
                 let totalMins = Math.round(macro.totalDuration / 60);
                 if (totalMins < 1) totalMins = 1;
@@ -1017,7 +1062,7 @@
 
                 let stopMarker = L.circleMarker([macro.lat, macro.lng], {
                     radius: macro.hasGap ? 10 : (subStopCount > 1 ? 9 : 7),
-                    fillColor: macro.hasGap ? '#d97706' : (subStopCount > 1 ? '#b91c1c' : '#ef4444'), // Warna Oranye jika ada GAP Time
+                    fillColor: macro.hasGap ? '#d97706' : (subStopCount > 1 ? '#b91c1c' : '#ef4444'), 
                     color: '#ffffff',
                     weight: 2,
                     fillOpacity: 1
@@ -1029,7 +1074,6 @@
                        </div>`
                     : '';
 
-                // NOTIFIKASI KHUSUS GAP TIME
                 let gapBadge = macro.hasGap 
                     ? `<div class="bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-bold px-2 py-1 rounded mb-1.5 text-left">
                         <i class="fa-solid fa-satellite-dish text-amber-600 mr-1"></i> <b>GAP Time Terdeteksi:</b> ${(macro.gapSec / 60).toFixed(1)} Menit<br>
@@ -1079,6 +1123,10 @@
                     return m;
                 });
                 activeLayer.addLayers(markers);
+
+                // Jalankan deteksi berhenti di mode titik juga
+                detectAndRenderStops(displayData, activeLayer);
+
                 map.addLayer(activeLayer);
             } else if(mode === 'line') {
                 activeLayer = L.featureGroup();
