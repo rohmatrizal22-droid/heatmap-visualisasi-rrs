@@ -20,7 +20,7 @@ function processData(json) {
     if (json.length === 0) { showToast("File kosong atau tidak dapat dibaca.", 'error'); resetUpload(); return; }
     let latKey, lonKey, combinedKey;
     const keys = Object.keys(json[0] || {});
-    
+
     combinedKey = keys.find(k => {
         const kl = k.toLowerCase().replace(/[\s_]/g, '');
         return kl === 'latlong' || kl === 'latlng' || (kl.includes('lat') && (kl.includes('lon') || kl.includes('lng')));
@@ -30,37 +30,37 @@ function processData(json) {
         latKey = keys.find(k => k.toLowerCase() === 'lat' || k.toLowerCase() === 'latitude' || k.toLowerCase().startsWith('lat'));
         lonKey = keys.find(k => k.toLowerCase() === 'lon' || k.toLowerCase() === 'lng' || k.toLowerCase() === 'longitude' || k.toLowerCase().startsWith('lon') || k.toLowerCase().startsWith('lng'));
     }
-    
-    if (!latKey && !lonKey && !combinedKey) { 
-        combinedKey = keys.find(k => { 
-            const val = json[0][k]; 
-            return typeof val === 'string' && val.trim().match(/^-?\d+(\.\d+)?\s*[,;]\s*-?\d+(\.\d+)?$/); 
-        }); 
+
+    if (!latKey && !lonKey && !combinedKey) {
+        combinedKey = keys.find(k => {
+            const val = json[0][k];
+            return typeof val === 'string' && val.trim().match(/^-?\d+(\.\d+)?\s*[,;]\s*-?\d+(\.\d+)?$/);
+        });
     }
-    
+
     if(!latKey && !lonKey && !combinedKey) return showToast("Kolom Latitude/Longitude tidak ditemukan.", 'error');
 
     json.forEach(row => {
         let lat, lng;
-        if (combinedKey && row[combinedKey]) { 
-            const parts = row[combinedKey].toString().replace(/['"]/g, '').trim().split(/\s*[,;]\s*|\s+/); 
-            if(parts.length >= 2) { lat = parseFloat(parts[0]); lng = parseFloat(parts[1]); } 
-        } else if (latKey && lonKey) { 
-            lat = parseFloat(row[latKey]); lng = parseFloat(row[lonKey]); 
+        if (combinedKey && row[combinedKey]) {
+            const parts = row[combinedKey].toString().replace(/['"]/g, '').trim().split(/\s*[,;]\s*|\s+/);
+            if(parts.length >= 2) { lat = parseFloat(parts[0]); lng = parseFloat(parts[1]); }
+        } else if (latKey && lonKey) {
+            lat = parseFloat(row[latKey]); lng = parseFloat(row[lonKey]);
         }
         if(!isNaN(lat) && !isNaN(lng)) { newData.push({ lat: lat, lng: lng, props: row }); }
     });
 
-    if(newData.length > 0) { 
-        rawData = newData; 
-        displayData = [...rawData]; 
-        map.fitBounds(L.latLngBounds(newData.map(d=>[d.lat,d.lng])), { padding: [20, 20] }); 
-        
+    if(newData.length > 0) {
+        rawData = newData;
+        displayData = [...rawData];
+        map.fitBounds(L.latLngBounds(newData.map(d=>[d.lat,d.lng])), { padding: [20, 20] });
+
         document.getElementById('viewMode').value = 'line';
-        updateUI(); 
-        toggleModal('dataEntryModal', false); 
+        updateUI();
+        toggleModal('dataEntryModal', false);
         showToast("Data berhasil dimuat! Mode visualisasi otomatis diatur ke Garis (Jalur).", "success");
-    } 
+    }
     else showToast("Data tidak valid (tidak ada koordinat yang terdeteksi).", 'error');
 }
 
@@ -90,7 +90,7 @@ function openDataManager(page) {
     toggleModal('dataManagerModal', true);
     const table = document.getElementById('mainDataTable');
     table.innerHTML = '';
-    
+
     let filteredWithIndex = rawData.map((d, index) => ({...d, originalIndex: index}));
     if (managerFilterText) {
         const lowerQuery = managerFilterText.toLowerCase();
@@ -110,21 +110,21 @@ function openDataManager(page) {
         document.getElementById('tableFooter').innerHTML = '<span class="text-slate-400 italic">Tidak ada data.</span>';
         return;
     }
-    
+
     const headers = Object.keys(filteredWithIndex[0].props);
     let thead = '<thead><tr><th class="w-10">#</th>';
     headers.forEach(h => { if(h !== '_sec') thead += `<th>${h}</th>`; });
     thead += '<th class="w-10 text-center">Aksi</th></tr></thead>';
     table.innerHTML = thead;
-    
+
     let tbody = '<tbody>';
     const totalPages = Math.ceil(filteredWithIndex.length / itemsPerPage);
     if (currentPage < 1) currentPage = 1;
     if (currentPage > totalPages) currentPage = totalPages;
-    
+
     const start = (currentPage - 1) * itemsPerPage;
     const end = Math.min(start + itemsPerPage, filteredWithIndex.length);
-    
+
     for(let i=start; i<end; i++) {
         const d = filteredWithIndex[i];
         const origIdx = d.originalIndex;
@@ -139,7 +139,7 @@ function openDataManager(page) {
     }
     tbody += '</tbody>';
     table.innerHTML += tbody;
-    
+
     const footer = document.getElementById('tableFooter');
     footer.innerHTML = `
         <div class="flex justify-center items-center gap-3 mt-3 pb-2">
@@ -254,77 +254,65 @@ function detectAndRenderStops(data, layer) {
 function renderLayer() {
     if(map.getSize().x === 0) { setTimeout(renderLayer, 200); return; }
     if(activeLayer) { map.removeLayer(activeLayer); activeLayer=null; }
-    
+
     const mode = document.getElementById('viewMode').value;
     const cf = styleConfig[mode];
     if(displayData.length === 0) return;
 
     if(mode === 'heatmap') {
-        activeLayer = L.heatLayer(displayData.map(d=>[d.lat,d.lng, 1]), { 
-            radius: cf.radius, 
-            blur: cf.blur, 
-            max: cf.max 
+        activeLayer = L.heatLayer(displayData.map(d=>[d.lat,d.lng, 1]), {
+            radius: cf.radius,
+            blur: cf.blur,
+            max: cf.max
         }).addTo(map);
 
     } else if(mode === 'point') {
         activeLayer = L.markerClusterGroup({ chunkedLoading: true });
-        const markers = displayData.map(d => L.circleMarker([d.lat,d.lng], { 
-            radius: cf.radius, 
-            fillColor: cf.color, 
-            color:'#fff', 
-            weight:1, 
-            fillOpacity: cf.opacity 
+        const markers = displayData.map(d => L.circleMarker([d.lat,d.lng], {
+            radius: cf.radius,
+            fillColor: cf.color,
+            color:'#fff',
+            weight:1,
+            fillOpacity: cf.opacity
         }).bindPopup(createPopup(d)));
-        
-        activeLayer.addLayers(markers); 
-        detectAndRenderStops(displayData, activeLayer); 
+
+        activeLayer.addLayers(markers);
+        detectAndRenderStops(displayData, activeLayer);
         map.addLayer(activeLayer);
 
+    // --- MODE IKON SPBU (TIDAK DI-AKUMULASI / INDIVIDUAL MARKER) ---
     } else if(mode === 'spbu') {
-        activeLayer = L.markerClusterGroup({ 
-            chunkedLoading: true,
-            maxClusterRadius: 40,
-            iconCreateFunction: function(cluster) {
-                const count = cluster.getChildCount();
-                const sz = styleConfig.spbu.size;
-                return L.divIcon({ 
-                    html: `<div style="background-color: #dc2626; color: white; border: 2px solid white; border-radius: 50%; width: ${sz+6}px; height: ${sz+6}px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; box-shadow: 0 0 8px rgba(0,0,0,0.5);"><i class="fa-solid fa-gas-pump mr-1 text-[10px]"></i>${count}</div>`, 
-                    className: 'spbu-cluster-icon', 
-                    iconSize: [sz+6, sz+6] 
-                });
-            }
-        });
+        activeLayer = L.featureGroup();
 
-        const spbuMarkers = displayData.map(d => {
+        displayData.forEach(d => {
             const m = L.marker([d.lat, d.lng], {
                 icon: createSPBUIcon(styleConfig.spbu.size)
             });
             m.bindPopup(createPopup(d));
-            return m;
+            m.addTo(activeLayer);
         });
 
-        activeLayer.addLayers(spbuMarkers);
         detectAndRenderStops(displayData, activeLayer);
-        map.addLayer(activeLayer);
+        activeLayer.addTo(map);
 
     } else if(mode === 'line') {
         activeLayer = L.featureGroup();
-        L.polyline(displayData.map(d => [d.lat, d.lng]), { 
-            color: cf.color, 
-            weight: cf.weight, 
-            opacity: cf.opacity 
+        L.polyline(displayData.map(d => [d.lat, d.lng]), {
+            color: cf.color,
+            weight: cf.weight,
+            opacity: cf.opacity
         }).addTo(activeLayer);
-        
-        detectAndRenderStops(displayData, activeLayer); 
+
+        detectAndRenderStops(displayData, activeLayer);
         activeLayer.addTo(map);
 
     } else { // Circle Mode
         activeLayer = L.featureGroup();
         displayData.slice(0, 2000).forEach(d => {
             L.circle([d.lat,d.lng], {
-                radius: cf.radiusScale, 
-                color: cf.color, 
-                weight:1, 
+                radius: cf.radiusScale,
+                color: cf.color,
+                weight:1,
                 opacity: cf.opacity
             }).bindPopup(createPopup(d)).addTo(activeLayer);
         });
@@ -381,13 +369,13 @@ async function calculateRoute() {
         if(data.code !== 'Ok') throw new Error("Gagal menghitung rute");
         const route = data.routes[0], distKm = (route.distance / 1000).toFixed(2);
         let durMin = (!isNaN(speedVal) && speedVal > 0) ? Math.round(((route.distance / 1000) / speedVal) * 60) : Math.round(route.duration / 60);
-        
+
         document.getElementById('floatDist').innerText = `${distKm} km`;
         document.getElementById('floatDur').innerText = `${durMin} menit`;
         document.getElementById('floatSpeedInfo').innerText = speedVal > 0 ? `${speedVal} km/jam` : "standar";
         document.getElementById('routeInfoPanel').classList.remove('hidden');
         toggleModal('routingModal', false);
-        
+
         if(routeLayer) map.removeLayer(routeLayer);
         const geoJson = { "type": "FeatureCollection", "features": [{ "type": "Feature", "geometry": route.geometry }] };
         routeLayer = L.layerGroup([
