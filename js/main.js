@@ -10,8 +10,9 @@ const itemsPerPage = 50;
 // --- STATE UNTUK SPBU ICON ---
 let spbuIconSize = 28;
 
-// --- STATE UNTUK TIME BUFFER RADIUS ---
+// --- STATE UNTUK TIME BUFFER RADIUS & SEARCH MARKER ---
 let timeBufferLayerGroup = L.layerGroup();
+let searchMarkerLayer = L.layerGroup();
 let lastClickedLatLng = null;
 
 const defaultStyles = {
@@ -36,6 +37,7 @@ baseLayers['google_sat'].addTo(map);
 const drawnItems = new L.FeatureGroup().addTo(map);
 
 timeBufferLayerGroup.addTo(map);
+searchMarkerLayer.addTo(map);
 
 // --- TOAST NOTIFICATION SYSTEM ---
 function showToast(message, type = 'info') {
@@ -75,6 +77,7 @@ function resetMapClickActions() {
     document.getElementById('mapClickActions').classList.add('hidden');
     document.getElementById('clickedCoords').innerText = '';
     lastClickedLatLng = null;
+    searchMarkerLayer.clearLayers();
     map.closePopup();
 }
 
