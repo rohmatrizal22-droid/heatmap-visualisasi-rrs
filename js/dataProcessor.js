@@ -421,20 +421,53 @@ async function handleAICommand() {
     const q = document.getElementById('aiCommandInput').value.trim();
     if(!q) return;
 
-    // 1. Cek jika Input berupa Koordinat Lat, Lon (misal: -0.947, 100.417)
-    const coordRegex = /^(-?\d+(\.\d+)?)[,\s]+(-?\d+(\.\d+)?)$/;
-    const match = q.match(coordRegex);
-    if (match) {
-        const lat = parseFloat(match[1]);
-        const lng = parseFloat(match[3]);
-        map.flyTo([lat, lng], 16, { duration: 1.5 });
-        L.popup().setLatLng([lat, lng]).setContent(`<b>📍 Koordinat Dipilih</b><br>${lat}, ${lng}`).openOn(map);
-        updateMapClickActions(lat.toFixed(6), lng.toFixed(6));
-        showToast(`Navigasi ke koordinat: ${lat}, ${lng}`, 'success');
-        return;
+    // Clear marker pencarian sebelumnya
+    if (typeof searchMarkerLayer !== 'undefined') {
+        searchMarkerLayer.clearLayers();
     }
 
-    // 2. Cek jika Filter Data lokal di Tabel/Excel
+    // 1. Deteksi Cerdas Format Koordinat Lat, Lon (seperti -8.467107, 117.375486)
+    const coordRegex = /^\s*(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)\s*$/;
+    const match = q.match(coordRegex);
+    
+    if (match) {
+        const lat = parseFloat(match[1]);
+        const lng = parseFloat(match[2]);
+
+        if (!isNaN(lat) && !isNaN(lng)) {
+            // Tancapkan Pin Lokasi Biru Khusus
+            const searchPin = L.marker([lat, lng], {
+                zIndexOffset: 2000,
+                icon: L.divIcon({
+                    className: 'custom-search-pin',
+                    html: `<div style="background:#2563eb; color:white; width:32px; height:32px; border-radius:50%; border:2px solid white; box-shadow:0 0 10px rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; font-size:14px;"><i class="fa-solid fa-location-dot"></i></div>`,
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
+                })
+            });
+
+            searchPin.bindPopup(`
+                <div class="text-center font-sans p-1">
+                    <b class="text-blue-900 text-sm">📍 Hasil Pencarian Koordinat</b><br>
+                    <span class="text-xs font-mono text-slate-600 block my-1">${lat}, ${lng}</span>
+                </div>
+            `);
+
+            if (typeof searchMarkerLayer !== 'undefined') {
+                searchMarkerLayer.addLayer(searchPin);
+            } else {
+                searchPin.addTo(map);
+            }
+
+            map.flyTo([lat, lng], 16, { duration: 1.5 });
+            searchPin.openPopup();
+            updateMapClickActions(lat.toFixed(6), lng.toFixed(6));
+            showToast(`Navigasi ke koordinat: ${lat}, ${lng}`, 'success');
+            return;
+        }
+    }
+
+    // 2. Filter Data Lokal jika cocok dengan kolom Excel
     if (rawData && rawData.length > 0) {
         const lowerQuery = q.toLowerCase();
         const filtered = rawData.filter(d => {
@@ -452,7 +485,7 @@ async function handleAICommand() {
         }
     }
 
-    // 3. Pencarian Alamat / Lokasi via Geocoding (OpenStreetMap Nominatim)
+    // 3. Pencarian Alamat / Nama Tempat via OpenStreetMap Nominatim
     showToast(`Mencari alamat "${q}"...`, 'info');
     try {
         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
@@ -460,8 +493,32 @@ async function handleAICommand() {
         if(data && data.length > 0) {
             const lat = parseFloat(data[0].lat);
             const lon = parseFloat(data[0].lon);
+
+            const addressPin = L.marker([lat, lon], {
+                zIndexOffset: 2000,
+                icon: L.divIcon({
+                    className: 'custom-search-pin',
+                    html: `<div style="background:#2563eb; color:white; width:32px; height:32px; border-radius:50%; border:2px solid white; box-shadow:0 0 10px rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; font-size:14px;"><i class="fa-solid fa-location-dot"></i></div>`,
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
+                })
+            });
+
+            addressPin.bindPopup(`
+                <div class="text-center font-sans p-1 min-w-[180px]">
+                    <b class="text-blue-900 text-sm">📍 Hasil Pencarian Alamat</b><br>
+                    <span class="text-xs text-slate-600 block my-1">${data[0].display_name}</span>
+                </div>
+            `);
+
+            if (typeof searchMarkerLayer !== 'undefined') {
+                searchMarkerLayer.addLayer(addressPin);
+            } else {
+                addressPin.addTo(map);
+            }
+
             map.flyTo([lat, lon], 14, { duration: 1.5 });
-            L.popup().setLatLng([lat, lon]).setContent(`<b>📍 Hasil Pencarian</b><br>${data[0].display_name}`).openOn(map);
+            addressPin.openPopup();
             updateMapClickActions(lat.toFixed(6), lon.toFixed(6));
             showToast(`Lokasi ditemukan: ${data[0].display_name.split(',')[0]}`, 'success');
             return;
@@ -470,7 +527,7 @@ async function handleAICommand() {
         console.error("Geocoding error:", e);
     }
 
-    // 4. Fallback ke AI jika API Key Gemini terpasang
+    // 4. Fallback AI jika Gemini API Key terpasang
     if (getApiKey()) {
         const dataKeys = Object.keys(rawData[0]?.props || {});
         const payload = { contents: [{ parts: [{ text: `User query: "${q}". Data props: ${dataKeys.join(', ')}. Return action (NAVIGATE/FILTER/RESET) in JSON.` }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { action: { type: "STRING", enum: ["NAVIGATE", "FILTER", "RESET"] }, column: { type: "STRING" }, operator: { type: "STRING" }, value: { type: "STRING" }, lat: { type: "NUMBER" }, lng: { type: "NUMBER" }, zoom: { type: "NUMBER" }, label: { type: "STRING" } }, required: ["action"] } }, tools: [{ "google_search": {} }] };
