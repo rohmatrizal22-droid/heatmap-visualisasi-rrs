@@ -416,6 +416,79 @@ function renderStyleControls(mode) {
 function updateConfig(mode, key, val) { styleConfig[mode][key] = key !== 'color' ? parseFloat(val) : val; renderLayer(); }
 function resetStyles() { styleConfig = JSON.parse(JSON.stringify(defaultStyles)); renderLayer(); }
 
+// --- FITUR PENCARIAN MANDIRI LOKASI / ALAMAT / LATLON / DATA ---
+async function handleAICommand() {
+    const q = document.getElementById('aiCommandInput').value.trim();
+    if(!q) return;
+
+    // 1. Cek jika Input berupa Koordinat Lat, Lon (misal: -0.947, 100.417)
+    const coordRegex = /^(-?\d+(\.\d+)?)[,\s]+(-?\d+(\.\d+)?)$/;
+    const match = q.match(coordRegex);
+    if (match) {
+        const lat = parseFloat(match[1]);
+        const lng = parseFloat(match[3]);
+        map.flyTo([lat, lng], 16, { duration: 1.5 });
+        L.popup().setLatLng([lat, lng]).setContent(`<b>📍 Koordinat Dipilih</b><br>${lat}, ${lng}`).openOn(map);
+        updateMapClickActions(lat.toFixed(6), lng.toFixed(6));
+        showToast(`Navigasi ke koordinat: ${lat}, ${lng}`, 'success');
+        return;
+    }
+
+    // 2. Cek jika Filter Data lokal di Tabel/Excel
+    if (rawData && rawData.length > 0) {
+        const lowerQuery = q.toLowerCase();
+        const filtered = rawData.filter(d => {
+            return Object.values(d.props).some(val =>
+                val !== null && val !== undefined && String(val).toLowerCase().includes(lowerQuery)
+            );
+        });
+
+        if (filtered.length > 0 && filtered.length < rawData.length) {
+            displayData = filtered;
+            updateUI();
+            map.fitBounds(L.latLngBounds(filtered.map(d => [d.lat, d.lng])), { padding: [30, 30] });
+            showToast(`Ditemukan ${filtered.length} data cocok dalam tabel!`, 'success');
+            return;
+        }
+    }
+
+    // 3. Pencarian Alamat / Lokasi via Geocoding (OpenStreetMap Nominatim)
+    showToast(`Mencari alamat "${q}"...`, 'info');
+    try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
+        const data = await res.json();
+        if(data && data.length > 0) {
+            const lat = parseFloat(data[0].lat);
+            const lon = parseFloat(data[0].lon);
+            map.flyTo([lat, lon], 14, { duration: 1.5 });
+            L.popup().setLatLng([lat, lon]).setContent(`<b>📍 Hasil Pencarian</b><br>${data[0].display_name}`).openOn(map);
+            updateMapClickActions(lat.toFixed(6), lon.toFixed(6));
+            showToast(`Lokasi ditemukan: ${data[0].display_name.split(',')[0]}`, 'success');
+            return;
+        }
+    } catch(e) {
+        console.error("Geocoding error:", e);
+    }
+
+    // 4. Fallback ke AI jika API Key Gemini terpasang
+    if (getApiKey()) {
+        const dataKeys = Object.keys(rawData[0]?.props || {});
+        const payload = { contents: [{ parts: [{ text: `User query: "${q}". Data props: ${dataKeys.join(', ')}. Return action (NAVIGATE/FILTER/RESET) in JSON.` }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { action: { type: "STRING", enum: ["NAVIGATE", "FILTER", "RESET"] }, column: { type: "STRING" }, operator: { type: "STRING" }, value: { type: "STRING" }, lat: { type: "NUMBER" }, lng: { type: "NUMBER" }, zoom: { type: "NUMBER" }, label: { type: "STRING" } }, required: ["action"] } }, tools: [{ "google_search": {} }] };
+        try {
+            const txt = await callAI(payload, true); if (!txt) return;
+            const act = JSON.parse(txt.replace(/```json|```/g,'').trim());
+            if(act.action === 'NAVIGATE') { map.setView([act.lat, act.lng], act.zoom || 13); L.popup().setLatLng([act.lat, act.lng]).setContent(`📍 ${act.label}`).openOn(map); }
+            else if(act.action === 'FILTER' && rawData.length > 0) {
+                const filtered = rawData.filter(d => String(d.props[act.column]).toLowerCase().includes(String(act.value).toLowerCase()));
+                if(filtered.length > 0) { displayData = filtered; updateUI(); showToast(`${filtered.length} data disaring.`, 'success'); } else showToast("0 Data ditemukan.", 'error');
+            } else if(act.action==='RESET') resetFilter();
+            return;
+        } catch(e) {}
+    }
+
+    showToast("Lokasi atau alamat tidak ditemukan.", 'error');
+}
+
 // --- AI INTEGRATION ---
 async function callAI(promptOrPayload, isStructured = false) {
     const key = getApiKey(); if (!key) { showToast("Masukkan Gemini API Key di Pengaturan terlebih dahulu.", "error"); return null; }
